@@ -6,7 +6,7 @@ from typing import Any
 
 import aiohttp
 
-from .const import COOKIE_XSRF, HEADER_XSRF, LOGIN_URL, PARCELS_URL
+from .const import COOKIE_XSRF, HEADER_XSRF, LOGIN_URL, PARCELS_URL, SENT_SHIPMENTS_URL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -100,6 +100,30 @@ class DhlApiClient:
             data: dict[str, Any] = await response.json()
 
         return data.get("parcels", [])
+
+    async def async_get_sent_shipments(self) -> list[dict[str, Any]]:
+        """Retrieve the sent shipments list from the DHL orders endpoint.
+
+        Uses the cookies stored in the session's cookie jar (set by a prior
+        call to :meth:`async_login`) and adds the ``x-xsrf-token`` request
+        header whose value is read from the ``XSRF-TOKEN`` cookie.
+
+        Raises:
+            DhlApiError: If the server returns any status other than 200.
+            aiohttp.ClientError: On network-level failures.
+        """
+        xsrf_token = self._get_xsrf_token()
+        headers = {HEADER_XSRF: xsrf_token} if xsrf_token else {}
+
+        async with self._session.get(
+            SENT_SHIPMENTS_URL, headers=headers
+        ) as response:
+            if response.status != 200:
+                raise DhlApiError(response.status)
+
+            data: list[dict[str, Any]] = await response.json()
+
+        return data if isinstance(data, list) else []
 
     @property
     def user_info(self) -> dict[str, Any] | None:

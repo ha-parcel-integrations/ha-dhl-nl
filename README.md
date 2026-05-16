@@ -1,11 +1,12 @@
 # DHL NL Package Tracker
 
-A custom Home Assistant integration that tracks your incoming DHL eCommerce NL parcels. It polls the DHL eCommerce NL API every 30 minutes and exposes a summary sensor plus one sensor per active shipment.
+A custom Home Assistant integration that tracks your incoming and outgoing DHL eCommerce NL shipments. It polls the DHL eCommerce NL API every 30 minutes and exposes sensors for both packages on their way to you and packages you have sent.
 
 ## Features
 
-- **Summary sensor** — shows the total number of active parcels in transit
-- **Per-parcel sensors** — one sensor per active shipment, with full parcel details as attributes
+- **Incoming summary sensor** — shows the total number of active parcels on their way to you
+- **Per-parcel sensors** — one sensor per active incoming shipment, with full parcel details as attributes
+- **Outgoing summary sensor** — shows the total number of sent shipments still in transit
 - **Automatic lifecycle management** — new parcel sensors are created when shipments appear; stale sensors are removed when shipments are delivered or no longer active
 - **Session recovery** — automatically re-authenticates when the session expires (HTTP 401/403)
 - **Re-authentication flow** — supports HA's built-in re-auth UI when credentials change
@@ -40,31 +41,55 @@ The integration validates your credentials against the DHL API before saving. If
 
 ## Sensors
 
-### `sensor.<account>_dhl_packages`
+### Incoming parcels
 
-Summary sensor for the configured account. The `<account>` prefix is derived from your email address (e.g. `fam_example_nl` for `fam@example.nl`).
+#### `sensor.<account>_dhl_incoming_packages`
+
+Summary sensor showing how many parcels are currently on their way to you.
 
 | Attribute | Description |
 |-----------|-------------|
-| `parcels` | List of all active parcel objects returned by the API |
+| `parcels` | List of all active incoming parcel objects returned by the API |
 
-**State:** number of active parcels (unit: `packages`)
+**State:** number of active incoming parcels (unit: `packages`)
 
-### `sensor.<account>_dhl_parcel_<barcode>`
+#### `sensor.<account>_dhl_parcel_<barcode>`
 
-One sensor per active shipment.
+One sensor per active incoming shipment. Created automatically when a new parcel appears and removed once it is delivered.
 
 **State:** parcel status string (e.g. `IN_DELIVERY`, `UNDERWAY`)
 
 **Attributes:** all fields returned by the DHL API for that parcel, including barcode, estimated delivery, address, and event history.
 
-## Active parcel categories
+### Outgoing shipments
 
-Only parcels in the following categories are tracked (returns are excluded):
+#### `sensor.<account>_dhl_outgoing_packages`
 
-`PROBLEM` · `CUSTOMS` · `DATA_RECEIVED` · `EXCEPTION` · `INTERVENTION` · `IN_DELIVERY` · `LEG` · `UNDERWAY` · `UNKNOWN`
+Summary sensor showing how many packages you have sent that are still in transit.
 
-Parcels with a `DELIVERED` or similar terminal status are automatically removed.
+| Attribute | Description |
+|-----------|-------------|
+| `shipments` | List of active outgoing shipment objects, each containing `barcode`, `orderId`, `status`, `category`, `receiver`, `destination`, `timeCreated`, and `receivingTimeIndication` |
+
+**State:** number of active outgoing shipments (unit: `packages`)
+
+Shipments with a `DELIVERED` status are automatically excluded. No per-shipment sensors are created — all data is available as attributes on this single sensor.
+
+## Active shipment categories
+
+Both incoming and outgoing sensors only track shipments in the following categories. `DELIVERED` is the only terminal state and is always excluded.
+
+| Category | Description |
+|----------|-------------|
+| `CUSTOMS` | Being processed by customs |
+| `DATA_RECEIVED` | Shipment registered / label created |
+| `EXCEPTION` | Something went wrong, delay expected |
+| `IN_DELIVERY` | Parcel is in transit |
+| `INTERVENTION` | An intervention occurred in the delivery process |
+| `LEG` | Domestic leg registered (early trace event) |
+| `PROBLEM` | Same as `EXCEPTION` |
+| `UNDERWAY` | Parcel is being sorted |
+| `UNKNOWN` | Status unknown |
 
 ## Poll interval
 
@@ -76,7 +101,7 @@ Data is refreshed every **30 minutes**. You can trigger a manual refresh from th
 |---------|--------------|
 | `invalid_auth` error during setup | Wrong email or password |
 | `cannot_connect` error during setup | DHL API is unreachable; check your network |
-| Sensors disappear after delivery | Expected — delivered parcels are filtered out |
+| Sensors disappear after delivery | Expected — delivered shipments are filtered out |
 | Sensors not updating | Check **Settings → System → Logs** for `dhl` entries |
 
 Enable debug logging by adding the following to `configuration.yaml`:

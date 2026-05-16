@@ -13,7 +13,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .coordinator import DhlCoordinator
+from .coordinator import DhlCoordinator, DhlSentShipmentsCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,18 +25,22 @@ async def async_setup_entry(
 ) -> None:
     """Set up DHL sensor entities from a config entry.
 
-    Performs the initial coordinator refresh, then registers the summary
-    sensor and one per-parcel sensor for every active parcel.
+    Performs the initial coordinator refreshes, then registers:
+    - A summary sensor for incoming active parcels, plus one per-parcel sensor
+    - A summary sensor for outgoing active shipments
     """
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator: DhlCoordinator = data["coordinator"]
+    sent_coordinator: DhlSentShipmentsCoordinator = data["sent_coordinator"]
     user_info: dict[str, Any] = data["user_info"]
 
-    # Perform the first refresh before adding entities (Requirement 6.2).
+    # Perform the first refresh for both coordinators before adding entities.
     await coordinator.async_config_entry_first_refresh()
+    await sent_coordinator.async_config_entry_first_refresh()
 
     entities: list[SensorEntity] = []
 
+    # Incoming parcels — summary + one sensor per parcel.
     summary_sensor = DhlPackagesSensor(
         coordinator=coordinator,
         user_info=user_info,
@@ -44,7 +48,6 @@ async def async_setup_entry(
     )
     entities.append(summary_sensor)
 
-    # Create one DhlParcelSensor per active parcel in the initial data.
     for parcel in coordinator.data or []:
         barcode = parcel.get("barcode", "")
         entities.append(
@@ -54,6 +57,14 @@ async def async_setup_entry(
                 barcode=barcode,
             )
         )
+
+    # Outgoing shipments — single summary sensor.
+    entities.append(
+        DhlSentShipmentsSensor(
+            coordinator=sent_coordinator,
+            user_info=user_info,
+        )
+    )
 
     async_add_entities(entities)
 
@@ -70,14 +81,14 @@ def _build_device_info(user_info: dict[str, Any]) -> DeviceInfo:
 
 
 class DhlPackagesSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
-    """Summary sensor reporting the count of active DHL parcels.
+    """Summary sensor reporting the count of active incoming DHL parcels.
 
     Also manages the lifecycle of per-parcel :class:`DhlParcelSensor`
     entities: new barcodes are added and stale barcodes are removed from
     the entity registry whenever the coordinator data changes.
     """
 
-    _attr_name = "DHL Packages"
+    _attr_name = "DHL Incoming Packages"
     _attr_icon = "mdi:package-variant-closed"
     _attr_native_unit_of_measurement = "packages"
 
@@ -155,7 +166,7 @@ class DhlPackagesSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
 
 
 class DhlParcelSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
-    """Per-parcel sensor reporting the status of a single DHL shipment."""
+    """Per-parcel sensor reporting the status of a single incoming DHL shipment."""
 
     _attr_icon = "mdi:package-variant-closed"
 
@@ -196,3 +207,59 @@ class DhlParcelSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
         """Return the full parcel dict as attributes."""
         parcel = self._get_parcel()
         return dict(parcel) if parcel else {}
+
+
+class DhlSentShipmentsSensor(
+    CoordinatorEntity[DhlSentShipmentsCoordinator], SensorEntity
+):
+    """Summary sensor reporting the count of active outgoing DHL shipments.
+
+    Exposes the full list of in-transit sent shipments as an attribute.
+    No per-shipment sensors are created — all data is available on this
+    single entity.
+    """
+
+    _attr_name = "DHL Outgoing Packages"
+    _attr_icon = "mdi:package-variant-closed-send"
+    _attr_native_unit_of_measurement = "packages"
+
+    def __init__(
+        self,
+        coordinator: DhlSentShipmentsCoordinator,
+        user_info: dict[str, Any],
+    ) -> None:
+        """Initialise the sent shipments sensor."""
+        super().__init__(coordinator)
+        self._user_info = user_info
+        user_id: str = user_info.get("userId", "")
+        self._attr_unique_id = f"{user_id}_outgoing_packages"
+        self._attr_device_info = _build_device_info(user_info)
+
+    # ------------------------------------------------------------------
+    # SensorEntity interface
+    # ------------------------------------------------------------------
+
+    @property
+    def native_value(self) -> int:
+        """Return the number of active outgoing shipments."""
+        return len(self.coordinator.data or [])
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the full list of active sent shipments as an attribute."""
+        shipments = self.coordinator.data or []
+        return {
+            "shipments": [
+                {
+                    "barcode": s.get("barcode"),
+                    "orderId": s.get("orderId"),
+                    "status": s.get("status"),
+                    "category": s.get("category"),
+                    "receiver": s.get("receiver"),
+                    "destination": s.get("destination"),
+                    "timeCreated": s.get("timeCreated"),
+                    "receivingTimeIndication": s.get("receivingTimeIndication"),
+                }
+                for s in shipments
+            ]
+        }

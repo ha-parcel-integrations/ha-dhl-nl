@@ -13,7 +13,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import DhlApiClient, DhlAuthError
 from .const import DOMAIN, PLATFORMS
-from .coordinator import DhlCoordinator
+from .coordinator import DhlCoordinator, DhlSentShipmentsCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,10 +49,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise ConfigEntryNotReady("DHL login failed") from exc
 
     coordinator = DhlCoordinator(hass, client)
+    sent_coordinator = DhlSentShipmentsCoordinator(hass, client)
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
         "client": client,
         "coordinator": coordinator,
+        "sent_coordinator": sent_coordinator,
         "user_info": user_info,
     }
 
