@@ -6,6 +6,8 @@ A custom Home Assistant integration that tracks your incoming and outgoing DHL e
 
 - **Incoming summary sensor** — shows the total number of active parcels on their way to you
 - **Per-parcel sensors** — one sensor per active incoming shipment, with full parcel details as attributes
+- **Next delivery sensor** — shows the earliest expected delivery datetime across all active parcels
+- **Parcels awaiting pickup sensor** — shows how many parcels are waiting at a ServicePoint for collection
 - **Outgoing summary sensor** — shows the total number of sent shipments still in transit
 - **Automatic lifecycle management** — new parcel sensors are created when shipments appear; stale sensors are removed when shipments are delivered or no longer active
 - **Session recovery** — automatically re-authenticates when the session expires (HTTP 401/403)
@@ -61,6 +63,47 @@ One sensor per active incoming shipment. Created automatically when a new parcel
 
 **Attributes:** all fields returned by the DHL API for that parcel, including barcode, estimated delivery, address, and event history.
 
+#### `sensor.<account>_dhl_next_delivery`
+
+Shows the earliest expected delivery datetime across all active incoming parcels. Uses device class `timestamp` so Home Assistant treats it as a proper datetime — useful for time-based automations.
+
+| Attribute | Description |
+|-----------|-------------|
+| `barcode` | Barcode of the parcel arriving soonest |
+| `sender` | Name of the sender of that parcel |
+
+**State:** datetime of the next expected delivery, or unavailable if no parcels have a known delivery time
+
+**Example automation:** notify 1 hour before the next delivery:
+```yaml
+trigger:
+  - platform: template
+    value_template: >
+      {{ (as_timestamp(states('sensor.dhl_next_delivery')) - as_timestamp(now())) < 3600 }}
+```
+
+#### `sensor.<account>_dhl_parcels_awaiting_pickup`
+
+Shows how many parcels are waiting at a DHL ServicePoint to be collected. A parcel is counted when its destination is a ServicePoint and it has not yet been collected (`COLLECTED_AT_PARCELSHOP`).
+
+| Attribute | Description |
+|-----------|-------------|
+| `parcels` | List of pending pickup parcels, each with `barcode`, `sender`, `pickup_location`, `pickup_address`, and `status` |
+
+**State:** number of parcels awaiting pickup (unit: `packages`)
+
+**Example automation:** send a notification when a parcel is ready for pickup:
+```yaml
+trigger:
+  - platform: numeric_state
+    entity_id: sensor.dhl_parcels_awaiting_pickup
+    above: 0
+action:
+  - service: notify.mobile_app
+    data:
+      message: "You have a parcel waiting at a DHL ServicePoint."
+```
+
 ### Outgoing shipments
 
 #### `sensor.<account>_dhl_outgoing_packages`
@@ -111,6 +154,12 @@ logger:
   logs:
     custom_components.dhl_nl: debug
 ```
+
+## Disclaimer
+
+This integration and its documentation were generated with the assistance of AI tools. It is an independent, community-built project with no affiliation, endorsement, or connection to DHL or any of its subsidiaries.
+
+Use at your own risk. The DHL eCommerce NL API is undocumented and may change without notice, which could break this integration at any time.
 
 ## Contributing
 

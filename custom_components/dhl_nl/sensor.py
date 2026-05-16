@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
@@ -40,7 +41,7 @@ async def async_setup_entry(
 
     entities: list[SensorEntity] = []
 
-    # Incoming parcels — summary + one sensor per parcel.
+    # Incoming parcels — summary + one sensor per parcel + derived sensors.
     summary_sensor = DhlPackagesSensor(
         coordinator=coordinator,
         user_info=user_info,
@@ -57,6 +58,9 @@ async def async_setup_entry(
                 barcode=barcode,
             )
         )
+
+    entities.append(DhlNextDeliverySensor(coordinator=coordinator, user_info=user_info))
+    entities.append(DhlPickupPendingSensor(coordinator=coordinator, user_info=user_info))
 
     # Outgoing shipments — single summary sensor.
     entities.append(
@@ -261,5 +265,135 @@ class DhlSentShipmentsSensor(
                     "receivingTimeIndication": s.get("receivingTimeIndication"),
                 }
                 for s in shipments
+            ]
+        }
+
+
+class DhlNextDeliverySensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
+    """Sensor reporting the earliest expected delivery datetime across all active parcels.
+
+    State is a timezone-aware datetime (device class TIMESTAMP), which allows
+    HA automations to trigger relative to the expected delivery time, e.g.
+    "notify me 1 hour before the next delivery".
+
+    Returns ``None`` (unavailable) when there are no active parcels or none
+    have a known delivery time indication.
+    """
+
+    _attr_name = "DHL Next Delivery"
+    _attr_icon = "mdi:clock-fast"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def __init__(
+        self,
+        coordinator: DhlCoordinator,
+        user_info: dict[str, Any],
+    ) -> None:
+        """Initialise the next delivery sensor."""
+        super().__init__(coordinator)
+        self._user_info = user_info
+        user_id: str = user_info.get("userId", "")
+        self._attr_unique_id = f"{user_id}_next_delivery"
+        self._attr_device_info = _build_device_info(user_info)
+
+    @property
+    def native_value(self) -> datetime | None:
+        """Return the earliest receivingTimeIndication.moment across active parcels.
+
+        Parses ISO 8601 strings and returns the minimum as a timezone-aware
+        datetime. Returns ``None`` if no parcels have a known delivery time.
+        """
+        moments: list[datetime] = []
+        for parcel in self.coordinator.data or []:
+            indication = parcel.get("receivingTimeIndication") or {}
+            moment_str: str | None = indication.get("moment")
+            if not moment_str:
+                continue
+            try:
+                dt = datetime.fromisoformat(moment_str.replace("Z", "+00:00"))
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                moments.append(dt)
+            except ValueError:
+                _LOGGER.debug("Could not parse delivery moment: %s", moment_str)
+        return min(moments) if moments else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the barcode and sender of the parcel with the earliest delivery."""
+        moments: list[tuple[datetime, dict]] = []
+        for parcel in self.coordinator.data or []:
+            indication = parcel.get("receivingTimeIndication") or {}
+            moment_str: str | None = indication.get("moment")
+            if not moment_str:
+                continue
+            try:
+                dt = datetime.fromisoformat(moment_str.replace("Z", "+00:00"))
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                moments.append((dt, parcel))
+            except ValueError:
+                pass
+        if not moments:
+            return {}
+        _, earliest = min(moments, key=lambda x: x[0])
+        sender = earliest.get("sender") or {}
+        return {
+            "barcode": earliest.get("barcode"),
+            "sender": sender.get("name"),
+        }
+
+
+class DhlPickupPendingSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
+    """Sensor reporting the number of parcels waiting to be collected at a ServicePoint.
+
+    A parcel is counted when its destination ``locationType`` is ``SERVICEPOINT``
+    and its status is not yet ``COLLECTED_AT_PARCELSHOP``. The full list of
+    pending pickup parcels is exposed as an attribute.
+    """
+
+    _attr_name = "DHL Parcels Awaiting Pickup"
+    _attr_icon = "mdi:store-clock"
+    _attr_native_unit_of_measurement = "packages"
+
+    def __init__(
+        self,
+        coordinator: DhlCoordinator,
+        user_info: dict[str, Any],
+    ) -> None:
+        """Initialise the pickup pending sensor."""
+        super().__init__(coordinator)
+        self._user_info = user_info
+        user_id: str = user_info.get("userId", "")
+        self._attr_unique_id = f"{user_id}_pickup_pending"
+        self._attr_device_info = _build_device_info(user_info)
+
+    def _get_pickup_parcels(self) -> list[dict]:
+        """Return active parcels that are waiting at a ServicePoint for collection."""
+        return [
+            p for p in (self.coordinator.data or [])
+            if (p.get("destination") or {}).get("locationType") == "SERVICEPOINT"
+            and p.get("status") != "COLLECTED_AT_PARCELSHOP"
+        ]
+
+    @property
+    def native_value(self) -> int:
+        """Return the number of parcels awaiting pickup."""
+        return len(self._get_pickup_parcels())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return details of each parcel awaiting pickup."""
+        parcels = self._get_pickup_parcels()
+        return {
+            "parcels": [
+                {
+                    "barcode": p.get("barcode"),
+                    "sender": (p.get("sender") or {}).get("name"),
+                    "pickup_location": (p.get("destination") or {}).get("name"),
+                    "pickup_address": (p.get("destination") or {}).get("address"),
+                    "status": p.get("status"),
+                }
+                for p in parcels
             ]
         }
