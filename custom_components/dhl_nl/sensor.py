@@ -10,6 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -81,6 +82,8 @@ def _build_device_info(user_info: dict[str, Any]) -> DeviceInfo:
         identifiers={(DOMAIN, user_id)},
         name=email,
         manufacturer="DHL",
+        entry_type=DeviceEntryType.SERVICE,
+        configuration_url="https://my.dhlecommerce.nl",
     )
 
 
