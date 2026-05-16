@@ -42,7 +42,7 @@ async def async_setup_entry(
     entities: list[SensorEntity] = []
 
     # Incoming parcels — summary + one sensor per parcel + derived sensors.
-    summary_sensor = DhlPackagesSensor(
+    summary_sensor = DhlIncomingParcelsSensor(
         coordinator=coordinator,
         user_info=user_info,
         async_add_entities=async_add_entities,
@@ -84,7 +84,7 @@ def _build_device_info(user_info: dict[str, Any]) -> DeviceInfo:
     )
 
 
-class DhlPackagesSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
+class DhlIncomingParcelsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     """Summary sensor reporting the count of active incoming DHL parcels.
 
     Also manages the lifecycle of per-parcel :class:`DhlParcelSensor`
@@ -92,9 +92,9 @@ class DhlPackagesSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     the entity registry whenever the coordinator data changes.
     """
 
-    _attr_name = "DHL Incoming Packages"
+    _attr_name = "DHL Incoming Parcels"
     _attr_icon = "mdi:package-variant-closed"
-    _attr_native_unit_of_measurement = "packages"
+    _attr_native_unit_of_measurement = "parcels"
 
     def __init__(
         self,
@@ -107,7 +107,7 @@ class DhlPackagesSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
         self._user_info = user_info
         self._async_add_entities = async_add_entities
         user_id: str = user_info.get("userId", "")
-        self._attr_unique_id = f"{user_id}_packages"
+        self._attr_unique_id = f"{user_id}_incoming_parcels"
         self._attr_device_info = _build_device_info(user_info)
         # Track which barcodes already have a DhlParcelSensor registered.
         self._known_barcodes: set[str] = set()
@@ -223,9 +223,9 @@ class DhlSentShipmentsSensor(
     single entity.
     """
 
-    _attr_name = "DHL Outgoing Packages"
+    _attr_name = "DHL Outgoing Parcels"
     _attr_icon = "mdi:package-variant-closed"
-    _attr_native_unit_of_measurement = "packages"
+    _attr_native_unit_of_measurement = "parcels"
 
     def __init__(
         self,
@@ -236,7 +236,7 @@ class DhlSentShipmentsSensor(
         super().__init__(coordinator)
         self._user_info = user_info
         user_id: str = user_info.get("userId", "")
-        self._attr_unique_id = f"{user_id}_outgoing_packages"
+        self._attr_unique_id = f"{user_id}_outgoing_parcels"
         self._attr_device_info = _build_device_info(user_info)
 
     # ------------------------------------------------------------------
@@ -342,7 +342,7 @@ class DhlPickupPendingSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
 
     _attr_name = "DHL Parcels Awaiting Pickup"
     _attr_icon = "mdi:store-clock"
-    _attr_native_unit_of_measurement = "packages"
+    _attr_native_unit_of_measurement = "parcels"
 
     def __init__(
         self,

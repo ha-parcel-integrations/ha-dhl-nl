@@ -1,6 +1,6 @@
-# DHL NL Package Tracker
+# DHL NL Parcel Tracker
 
-A custom Home Assistant integration that tracks your incoming and outgoing DHL eCommerce NL shipments. It polls the DHL eCommerce NL API every 30 minutes and exposes sensors for both packages on their way to you and packages you have sent.
+A custom Home Assistant integration that tracks your incoming and outgoing DHL eCommerce NL shipments. It polls the DHL eCommerce NL API every 30 minutes and exposes sensors for both parcels on their way to you and parcels you have sent.
 
 ## Features
 
@@ -45,7 +45,7 @@ The integration validates your credentials against the DHL API before saving. If
 
 ### Incoming parcels
 
-#### `sensor.<account>_dhl_incoming_packages`
+#### `sensor.<account>_dhl_incoming_parcels`
 
 Summary sensor showing how many parcels are currently on their way to you.
 
@@ -106,7 +106,7 @@ action:
 
 ### Outgoing shipments
 
-#### `sensor.<account>_dhl_outgoing_packages`
+#### `sensor.<account>_dhl_outgoing_parcels`
 
 Summary sensor showing how many packages you have sent that are still in transit.
 

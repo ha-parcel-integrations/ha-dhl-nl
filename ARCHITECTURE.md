@@ -128,11 +128,11 @@ hass.data["dhl_nl"] = {
 
 | Sensor class | Unique ID pattern | Example |
 |---|---|---|
-| `DhlPackagesSensor` | `{userId}_packages` | `abc123_packages` |
+| `DhlIncomingParcelsSensor` | `{userId}_incoming_parcels` | `abc123_incoming_parcels` |
 | `DhlParcelSensor` | `{userId}_{barcode}` | `abc123_JUN491599949120274226025` |
 | `DhlNextDeliverySensor` | `{userId}_next_delivery` | `abc123_next_delivery` |
 | `DhlPickupPendingSensor` | `{userId}_pickup_pending` | `abc123_pickup_pending` |
-| `DhlSentShipmentsSensor` | `{userId}_outgoing_packages` | `abc123_outgoing_packages` |
+| `DhlSentShipmentsSensor` | `{userId}_outgoing_parcels` | `abc123_outgoing_parcels` |
 
 `userId` comes from the login response and is a UUID.
 
