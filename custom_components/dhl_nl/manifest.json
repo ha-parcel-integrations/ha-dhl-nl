@@ -1,0 +1,12 @@
+{
+  "domain": "dhl_nl",
+  "name": "DHL NL",
+  "version": "1.0.0",
+  "config_flow": true,
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "requirements": [],
+  "codeowners": ["@peternijssen"],
+  "documentation": "https://github.com/peternijssen/ha-dhl-nl",
+  "issue_tracker": "https://github.com/peternijssen/ha-dhl-nl/issues"
+}

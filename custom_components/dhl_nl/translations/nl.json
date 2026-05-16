@@ -1,0 +1,29 @@
+{
+  "title": "DHL NL",
+  "config": {
+    "step": {
+      "user": {
+        "title": "DHL eCommerce NL",
+        "data": {
+          "email": "E-mailadres",
+          "password": "Wachtwoord"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Opnieuw inloggen bij DHL",
+        "data": {
+          "email": "E-mailadres",
+          "password": "Wachtwoord"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Kan DHL niet bereiken. Controleer je netwerkverbinding.",
+      "invalid_auth": "Ongeldig e-mailadres of wachtwoord."
+    },
+    "abort": {
+      "already_configured": "Dit DHL-account is al geconfigureerd.",
+      "reauth_successful": "Opnieuw inloggen geslaagd."
+    }
+  }
+}

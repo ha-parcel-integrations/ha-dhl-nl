@@ -1,0 +1,29 @@
+{
+  "title": "DHL NL",
+  "config": {
+    "step": {
+      "user": {
+        "title": "DHL eCommerce NL",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate DHL",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to reach DHL. Check your network.",
+      "invalid_auth": "Invalid email or password."
+    },
+    "abort": {
+      "already_configured": "This DHL account is already configured.",
+      "reauth_successful": "Re-authentication successful."
+    }
+  }
+}
