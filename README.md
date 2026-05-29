@@ -128,6 +128,51 @@ Summary sensor showing how many packages you have sent that are still in transit
 
 Shipments with a `DELIVERED` status are automatically excluded. No per-shipment sensors are created — all data is available as attributes on this single sensor.
 
+## Example dashboard card
+
+The card below renders a list of active incoming parcels with sender name and delivery window. It is only shown when at least one parcel is active.
+
+Replace `sensor.dhl_<account>_dhl_incoming_parcels` with your own entity ID (find it in **Settings → Devices & Services → DHL**).
+
+```yaml
+- type: grid
+  cards:
+    - type: heading
+      heading: Pakketten onderweg
+      heading_style: title
+      icon: mdi:package-variant-closed
+
+    - type: markdown
+      content: >-
+        {% set ent = 'sensor.dhl_<account>_dhl_incoming_parcels' -%}
+        {% set m = 'jan feb mrt apr mei jun jul aug sep okt nov dec'.split() -%}
+        {% set labels = {
+          'DATA_RECEIVED': 'aangemeld bij DHL',
+          'UNDERWAY': 'onderweg'
+        } -%}
+        {% macro hm(d) -%}{{ d.strftime('%-H') }}{{ ':' ~ d.strftime('%M') if d.minute }}{%- endmacro -%}
+        {% for p in state_attr(ent, 'parcels') or [] -%}
+        {% set ti = p.receivingTimeIndication -%}
+        {% set cat = p.category | default('', true) -%}
+        {% set label = labels[cat] if cat in labels else cat | lower | replace('_', ' ') -%}
+        {% set sender = p.sender.name if p.sender and p.sender.name else 'onbekende afzender' -%}
+        - 📦 DHL van **{{ sender }}**{% if ti and ti.start and ti.end %}{% set s =
+        as_datetime(ti.start) %}{% set e = as_datetime(ti.end) %} · {{ s.day }} {{
+        m[s.month - 1] }}, {{ hm(s) }}–{{ hm(e) }}u{% else %} · {{ label }}{% endif %}
+        {% endfor -%}
+
+  visibility:
+    - condition: numeric_state
+      above: 0
+      entity: sensor.dhl_<account>_dhl_incoming_parcels
+```
+
+**What it shows:**
+- Parcels with a known delivery window: `📦 DHL van Bol.com · 29 mei, 12–14u`
+- Parcels without a window: `📦 DHL van Bol.com · onderweg`
+
+The `labels` map translates the most common categories to Dutch. Add or change entries to match your preferred language or phrasing.
+
 ## Active shipment categories
 
 Both incoming and outgoing sensors only track shipments in the following categories. `DELIVERED` is the only terminal state and is always excluded.
