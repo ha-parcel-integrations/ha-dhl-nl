@@ -54,7 +54,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     except (DhlAuthError, aiohttp.ClientError) as exc:
         raise ConfigEntryNotReady("DHL login failed") from exc
 
-    coordinator = DhlCoordinator(hass, client)
+    coordinator = DhlCoordinator(hass, client, entry)
     sent_coordinator = DhlSentShipmentsCoordinator(hass, client)
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
@@ -66,7 +66,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    entry.async_on_unload(entry.add_update_listener(_async_update_options))
+
     return True
+
+
+async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Refresh the coordinator immediately when options are changed."""
+    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    await coordinator.async_request_refresh()
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

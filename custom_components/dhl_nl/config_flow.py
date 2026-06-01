@@ -7,12 +7,20 @@ from typing import Any
 import aiohttp
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
+from homeassistant.core import callback
+from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import DhlApiClient, DhlAuthError
-from .const import DOMAIN
+from .const import (
+    CONF_DELIVERED_FILTER_AMOUNT,
+    CONF_DELIVERED_FILTER_TYPE,
+    DEFAULT_DELIVERED_FILTER_AMOUNT,
+    DEFAULT_DELIVERED_FILTER_TYPE,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,21 +31,49 @@ _USER_SCHEMA = vol.Schema(
     }
 )
 
+_DELIVERED_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_DELIVERED_FILTER_TYPE, default=DEFAULT_DELIVERED_FILTER_TYPE): selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=[
+                    selector.SelectOptionDict(value="days", label="Days"),
+                    selector.SelectOptionDict(value="parcels", label="Number of parcels"),
+                ],
+                mode=selector.SelectSelectorMode.LIST,
+            )
+        ),
+        vol.Required(CONF_DELIVERED_FILTER_AMOUNT, default=DEFAULT_DELIVERED_FILTER_AMOUNT): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=1,
+                max=365,
+                step=1,
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
+    }
+)
+
 
 class DhlConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle the UI-driven configuration flow for the DHL integration."""
 
     VERSION = 1
 
+    def __init__(self) -> None:
+        self._email: str = ""
+        self._password: str = ""
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> DhlOptionsFlowHandler:
+        """Return the options flow handler."""
+        return DhlOptionsFlowHandler(config_entry)
+
     async def _validate_credentials(self, email: str, password: str) -> None:
         """Validate credentials against the live DHL API using the HA-managed session."""
         session = async_get_clientsession(self.hass)
         client = DhlApiClient(email, password, session)
         await client.async_login()
-
-    # ------------------------------------------------------------------
-    # Initial setup step
-    # ------------------------------------------------------------------
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -58,11 +94,9 @@ class DhlConfigFlow(ConfigFlow, domain=DOMAIN):
             else:
                 await self.async_set_unique_id(email)
                 self._abort_if_unique_id_configured()
-
-                return self.async_create_entry(
-                    title=email,
-                    data={CONF_EMAIL: email, CONF_PASSWORD: password},
-                )
+                self._email = email
+                self._password = password
+                return await self.async_step_delivered()
 
         return self.async_show_form(
             step_id="user",
@@ -70,9 +104,24 @@ class DhlConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    # ------------------------------------------------------------------
-    # Re-authentication steps
-    # ------------------------------------------------------------------
+    async def async_step_delivered(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show the delivered parcels filter form."""
+        if user_input is not None:
+            return self.async_create_entry(
+                title=self._email,
+                data={CONF_EMAIL: self._email, CONF_PASSWORD: self._password},
+                options={
+                    CONF_DELIVERED_FILTER_TYPE: user_input[CONF_DELIVERED_FILTER_TYPE],
+                    CONF_DELIVERED_FILTER_AMOUNT: int(user_input[CONF_DELIVERED_FILTER_AMOUNT]),
+                },
+            )
+
+        return self.async_show_form(
+            step_id="delivered",
+            data_schema=_DELIVERED_SCHEMA,
+        )
 
     async def async_step_reauth(
         self, entry_data: dict[str, Any]
@@ -115,4 +164,56 @@ class DhlConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="reauth_confirm",
             data_schema=_USER_SCHEMA,
             errors=errors,
+        )
+
+
+class DhlOptionsFlowHandler(OptionsFlow):
+    """Handle DHL options (delivered parcels filter)."""
+
+    def __init__(self, config_entry: ConfigEntry) -> None:
+        self._config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show the options form."""
+        if user_input is not None:
+            return self.async_create_entry(
+                title="",
+                data={
+                    CONF_DELIVERED_FILTER_TYPE: user_input[CONF_DELIVERED_FILTER_TYPE],
+                    CONF_DELIVERED_FILTER_AMOUNT: int(user_input[CONF_DELIVERED_FILTER_AMOUNT]),
+                },
+            )
+
+        current = self._config_entry.options
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_DELIVERED_FILTER_TYPE,
+                        default=current.get(CONF_DELIVERED_FILTER_TYPE, DEFAULT_DELIVERED_FILTER_TYPE),
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                selector.SelectOptionDict(value="days", label="Days"),
+                                selector.SelectOptionDict(value="parcels", label="Number of parcels"),
+                            ],
+                            mode=selector.SelectSelectorMode.LIST,
+                        )
+                    ),
+                    vol.Required(
+                        CONF_DELIVERED_FILTER_AMOUNT,
+                        default=current.get(CONF_DELIVERED_FILTER_AMOUNT, DEFAULT_DELIVERED_FILTER_AMOUNT),
+                    ): selector.NumberSelector(
+                        selector.NumberSelectorConfig(
+                            min=1,
+                            max=365,
+                            step=1,
+                            mode=selector.NumberSelectorMode.BOX,
+                        )
+                    ),
+                }
+            ),
         )

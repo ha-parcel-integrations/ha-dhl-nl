@@ -9,7 +9,12 @@ LOGIN_URL = "https://my.dhlecommerce.nl/api/user/login"
 PARCELS_URL = "https://my.dhlecommerce.nl/receiver-parcel-api/parcels"
 SENT_SHIPMENTS_URL = "https://my.dhlecommerce.nl/api/orders/sentShipments?max=250"
 
-POLL_INTERVAL = 1800  # seconds (30 minutes)
+POLL_INTERVAL = 900  # seconds (15 minutes)
+
+CONF_DELIVERED_FILTER_TYPE = "delivered_filter_type"
+CONF_DELIVERED_FILTER_AMOUNT = "delivered_filter_amount"
+DEFAULT_DELIVERED_FILTER_TYPE = "days"
+DEFAULT_DELIVERED_FILTER_AMOUNT = 7
 
 # All categories that indicate a shipment is still active (not yet delivered).
 # Applies to both incoming parcels and outgoing sent shipments.

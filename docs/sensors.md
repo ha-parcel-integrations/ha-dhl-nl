@@ -75,6 +75,29 @@ action:
       message: "You have a parcel waiting at a DHL ServicePoint."
 ```
 
+### `sensor.<account>_dhl_delivered_parcels`
+
+Recently delivered incoming parcels. The number of parcels shown is controlled by the integration options (see [Configuration](#configuration)).
+
+**State:** number of delivered parcels shown (unit: `parcels`)
+
+| Attribute | Description |
+|-----------|-------------|
+| `parcels` | List of delivered parcels, each with `barcode`, `sender`, `status`, and `delivery_date` |
+
+---
+
+## Configuration
+
+After the initial setup you can configure the delivered parcels filter via **Settings → Devices & Services → DHL → Configure**:
+
+| Option | Description |
+|--------|-------------|
+| **Filter by** | `Days` — show parcels delivered in the last N days. `Number of parcels` — show the N most recent deliveries. |
+| **Amount** | The number of days or parcels (1–365). Default: **7 days**. |
+
+Changes take effect on the next data refresh without requiring a restart.
+
 ---
 
 ## Outgoing shipments

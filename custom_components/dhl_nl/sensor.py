@@ -54,6 +54,7 @@ async def async_setup_entry(
         f"{user_id}_pickup_pending",
         f"{user_id}_en_route_to_service_point",
         f"{user_id}_outgoing_parcels",
+        f"{user_id}_delivered_parcels",
     }
     for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
         if (
@@ -88,6 +89,7 @@ async def async_setup_entry(
     entities.append(DhlNextDeliverySensor(coordinator=coordinator, user_info=user_info))
     entities.append(DhlEnRouteToServicePointSensor(coordinator=coordinator, user_info=user_info))
     entities.append(DhlPickupPendingSensor(coordinator=coordinator, user_info=user_info))
+    entities.append(DhlDeliveredParcelsSensor(coordinator=coordinator, user_info=user_info))
 
     # Outgoing shipments — single summary sensor.
     entities.append(
@@ -481,5 +483,43 @@ class DhlPickupPendingSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
                     "status": p.get("status"),
                 }
                 for p in parcels
+            ]
+        }
+
+
+class DhlDeliveredParcelsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
+    """Sensor reporting recently delivered incoming DHL parcels."""
+
+    _attr_name = "DHL Delivered Parcels"
+    _attr_icon = "mdi:package-variant"
+    _attr_native_unit_of_measurement = "parcels"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(
+        self,
+        coordinator: DhlCoordinator,
+        user_info: dict[str, Any],
+    ) -> None:
+        super().__init__(coordinator)
+        self._user_info = user_info
+        user_id: str = user_info.get("userId", "")
+        self._attr_unique_id = f"{user_id}_delivered_parcels"
+        self._attr_device_info = _build_device_info(user_info)
+
+    @property
+    def native_value(self) -> int:
+        return len(self.coordinator.delivered)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {
+            "parcels": [
+                {
+                    "barcode": p.get("barcode"),
+                    "sender": (p.get("sender") or {}).get("name"),
+                    "status": p.get("status"),
+                    "delivery_date": (p.get("receivingTimeIndication") or {}).get("moment"),
+                }
+                for p in self.coordinator.delivered
             ]
         }

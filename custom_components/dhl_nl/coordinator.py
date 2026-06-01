@@ -2,15 +2,24 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 import aiohttp
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import DhlApiClient, DhlApiError
-from .const import ACTIVE_CATEGORIES, DOMAIN, POLL_INTERVAL
+from .const import (
+    ACTIVE_CATEGORIES,
+    CONF_DELIVERED_FILTER_AMOUNT,
+    CONF_DELIVERED_FILTER_TYPE,
+    DEFAULT_DELIVERED_FILTER_AMOUNT,
+    DEFAULT_DELIVERED_FILTER_TYPE,
+    DOMAIN,
+    POLL_INTERVAL,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,6 +30,15 @@ def filter_active_parcels(parcels: list[dict]) -> list[dict]:
         p for p in parcels
         if not p.get("isReturn", True)
         and p.get("category") in ACTIVE_CATEGORIES
+    ]
+
+
+def filter_delivered_parcels(parcels: list[dict]) -> list[dict]:
+    """Return delivered incoming parcels (not returns, category DELIVERED)."""
+    return [
+        p for p in parcels
+        if not p.get("isReturn", True)
+        and p.get("category") == "DELIVERED"
     ]
 
 
@@ -36,12 +54,13 @@ def filter_active_sent_shipments(shipments: list[dict]) -> list[dict]:
 class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
     """Coordinator that polls the DHL parcels API on a fixed schedule."""
 
-    def __init__(self, hass: HomeAssistant, client: DhlApiClient) -> None:
+    def __init__(self, hass: HomeAssistant, client: DhlApiClient, entry: ConfigEntry) -> None:
         """Initialise the coordinator.
 
         Args:
             hass: The Home Assistant instance.
             client: An authenticated :class:`DhlApiClient` instance.
+            entry: The config entry, used to read options for the delivered filter.
         """
         super().__init__(
             hass,
@@ -50,6 +69,8 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
             update_interval=timedelta(seconds=POLL_INTERVAL),
         )
         self._client = client
+        self._entry = entry
+        self.delivered: list[dict] = []
 
     async def _async_update_data(self) -> list[dict]:
         try:
@@ -58,10 +79,44 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
             raise UpdateFailed(f"DHL error: {err}") from err
 
         active = filter_active_parcels(raw)
+        self.delivered = self._apply_delivered_filter(filter_delivered_parcels(raw))
         _LOGGER.debug(
-            "DHL parcels fetched: %d total, %d active", len(raw), len(active)
+            "DHL parcels fetched: %d total, %d active, %d delivered",
+            len(raw), len(active), len(self.delivered),
         )
         return active
+
+    def _apply_delivered_filter(self, parcels: list[dict]) -> list[dict]:
+        """Apply the configured filter to the delivered parcels list."""
+        options = self._entry.options
+        filter_type = options.get(CONF_DELIVERED_FILTER_TYPE, DEFAULT_DELIVERED_FILTER_TYPE)
+        filter_amount = int(options.get(CONF_DELIVERED_FILTER_AMOUNT, DEFAULT_DELIVERED_FILTER_AMOUNT))
+
+        if filter_type == "days":
+            cutoff = datetime.now(timezone.utc) - timedelta(days=filter_amount)
+            return [p for p in parcels if self._delivery_dt(p) is None or self._delivery_dt(p) >= cutoff]
+
+        # "parcels" — return the most recent N
+        return parcels[:filter_amount]
+
+    @staticmethod
+    def _delivery_dt(parcel: dict) -> datetime | None:
+        """Parse the delivery datetime from a parcel's receivingTimeIndication."""
+        indication = parcel.get("receivingTimeIndication") or {}
+        indication_type = indication.get("indicationType")
+        if indication_type == "MomentIndication":
+            moment_str = indication.get("moment")
+        elif indication_type == "IntervalIndication":
+            moment_str = indication.get("start")
+        else:
+            return None
+        if not moment_str:
+            return None
+        try:
+            dt = datetime.fromisoformat(moment_str.replace("Z", "+00:00"))
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            return None
 
 
 class DhlSentShipmentsCoordinator(DataUpdateCoordinator[list[dict]]):

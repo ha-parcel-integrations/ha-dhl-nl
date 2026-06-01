@@ -46,6 +46,7 @@ A custom Home Assistant integration that tracks your incoming and outgoing DHL e
 | `sensor.<account>_dhl_next_delivery` | Earliest expected delivery datetime |
 | `sensor.<account>_dhl_en_route_to_service_point` | Parcels in transit to a ServicePoint |
 | `sensor.<account>_dhl_parcels_awaiting_pickup` | Parcels ready for collection at a ServicePoint |
+| `sensor.<account>_dhl_delivered_parcels` | Recently delivered parcels (configurable window) |
 | `sensor.<account>_dhl_outgoing_parcels` | Number of active outgoing shipments |
 
 For full attribute reference, active status categories, and example automations see [docs/sensors.md](docs/sensors.md).
