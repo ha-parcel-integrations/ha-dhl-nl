@@ -8,9 +8,10 @@ import aiohttp
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import DhlApiClient, DhlApiError
+from .api import DhlApiClient, DhlApiError, DhlAuthError
 from .const import (
     ACTIVE_CATEGORIES,
     CONF_DELIVERED_FILTER_AMOUNT,
@@ -75,6 +76,8 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
     async def _async_update_data(self) -> list[dict]:
         try:
             raw = await self._client.async_get_parcels()
+        except DhlAuthError as err:
+            raise ConfigEntryAuthFailed("DHL authentication failed") from err
         except (DhlApiError, aiohttp.ClientError) as err:
             raise UpdateFailed(f"DHL error: {err}") from err
 
@@ -140,6 +143,8 @@ class DhlSentShipmentsCoordinator(DataUpdateCoordinator[list[dict]]):
     async def _async_update_data(self) -> list[dict]:
         try:
             raw = await self._client.async_get_sent_shipments()
+        except DhlAuthError as err:
+            raise ConfigEntryAuthFailed("DHL authentication failed") from err
         except (DhlApiError, aiohttp.ClientError) as err:
             raise UpdateFailed(f"DHL error (sent): {err}") from err
 
