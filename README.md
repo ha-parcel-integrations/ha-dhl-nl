@@ -99,6 +99,13 @@ Replace `<account>` with your own entity name.
 | Sensors disappear after delivery | Expected — delivered shipments are filtered out |
 | Sensors not updating | Check **Settings → System → Logs** for `dhl` entries |
 
+## Related integrations
+
+Tracking parcels from other Dutch carriers:
+
+- [ha-postnl](https://github.com/arjenbos/ha-postnl) — PostNL parcel tracker
+- [ha-dpd](https://github.com/peternijssen/ha-dpd) — DPD parcel tracker
+
 ## Disclaimer
 
 This is an independent, community-built project with no affiliation, endorsement, or connection to DHL or any of its subsidiaries. The DHL eCommerce NL API is undocumented and may change without notice.
