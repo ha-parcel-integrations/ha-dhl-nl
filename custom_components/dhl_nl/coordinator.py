@@ -36,6 +36,21 @@ def _delivery_window(parcel: dict) -> tuple[str | None, str | None]:
     return None, None
 
 
+def _tracking_url(parcel: dict) -> str | None:
+    """Construct the my.dhlecommerce.nl tracking URL for a parcel.
+
+    Returns ``None`` when the parcel is missing the barcode or destination
+    postcode. The URL pattern is taken from the public portal and depends on
+    DHL keeping it stable.
+    """
+    barcode = parcel.get("barcode")
+    postal = (((parcel.get("destination") or {}).get("address") or {}).get("postalCode") or "")
+    postal = postal.replace(" ", "")
+    if not barcode or not postal:
+        return None
+    return f"https://my.dhlecommerce.nl/portal/tracktrace/{barcode}/{postal}"
+
+
 def normalize_parcel(parcel: dict) -> dict:
     """Return a carrier-agnostic parcel dict with the original DHL payload under ``raw``."""
     sender = parcel.get("sender") or {}
@@ -55,7 +70,7 @@ def normalize_parcel(parcel: dict) -> dict:
         "planned_to": None if delivered else moment_to,
         "pickup": is_pickup,
         "pickup_point": destination.get("name") if is_pickup else None,
-        "url": None,
+        "url": _tracking_url(parcel),
         "raw": parcel,
     }
 

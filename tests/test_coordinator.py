@@ -288,6 +288,28 @@ def test_normalize_handles_missing_fields():
     assert result["sender"] is None
     assert result["pickup"] is False
     assert result["pickup_point"] is None
+    assert result["url"] is None
+
+
+def test_normalize_constructs_tracking_url():
+    parcel = {
+        "barcode": "3SXXXXXXXXXXXXXXXXX",
+        "category": "IN_DELIVERY",
+        "destination": {"address": {"postalCode": "1234 AB"}},
+    }
+    result = normalize_parcel(parcel)
+    assert result["url"] == (
+        "https://my.dhlecommerce.nl/portal/tracktrace/3SXXXXXXXXXXXXXXXXX/1234AB"
+    )
+
+
+def test_normalize_url_none_when_postcode_missing():
+    parcel = {
+        "barcode": "3SXXXXXXXXXXXXXXXXX",
+        "category": "IN_DELIVERY",
+        "destination": {"address": {}},
+    }
+    assert normalize_parcel(parcel)["url"] is None
 
 
 # ---------------------------------------------------------------------------

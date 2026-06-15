@@ -257,5 +257,5 @@ Each surviving parcel is transformed into a carrier-agnostic dict before being p
 | `planned_to` | `receivingTimeIndication.end` for `IntervalIndication`; `null` for `MomentIndication` |
 | `pickup` | `destination.locationType == "SERVICEPOINT"` |
 | `pickup_point` | `destination.name` when `pickup` is `true` |
-| `url` | Not exposed by DHL — `null` |
+| `url` | Constructed as `https://my.dhlecommerce.nl/portal/tracktrace/{barcode}/{destination.address.postalCode}` (whitespace stripped from the postcode). `null` when either is missing. |
 | `raw` | The full parcel object as returned above |
