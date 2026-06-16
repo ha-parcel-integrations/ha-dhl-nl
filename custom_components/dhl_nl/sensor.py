@@ -131,6 +131,8 @@ class DhlIncomingParcelsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     _attr_icon = "mdi:package-variant-closed"
     _attr_native_unit_of_measurement = "parcels"
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_attribution = "Data provided by DHL"
+    _unrecorded_attributes = frozenset({"parcels"})
 
     def __init__(
         self,
@@ -191,6 +193,7 @@ class DhlParcelSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     """Per-parcel sensor reporting the status of a single incoming DHL shipment."""
 
     _attr_icon = "mdi:package-variant-closed"
+    _attr_attribution = "Data provided by DHL"
 
     def __init__(
         self,
@@ -252,6 +255,8 @@ class DhlSentShipmentsSensor(
     _attr_icon = "mdi:package-variant-closed"
     _attr_native_unit_of_measurement = "parcels"
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_attribution = "Data provided by DHL"
+    _unrecorded_attributes = frozenset({"shipments"})
 
     def __init__(
         self,
@@ -309,6 +314,7 @@ class DhlNextDeliverySensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     _attr_name = "DHL Next Delivery"
     _attr_icon = "mdi:clock-fast"
     _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_attribution = "Data provided by DHL"
 
     def __init__(
         self,
@@ -383,6 +389,8 @@ class DhlEnRouteToServicePointSensor(CoordinatorEntity[DhlCoordinator], SensorEn
     _attr_icon = "mdi:truck-delivery"
     _attr_native_unit_of_measurement = "parcels"
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_attribution = "Data provided by DHL"
+    _unrecorded_attributes = frozenset({"parcels"})
 
     def __init__(
         self,
@@ -436,6 +444,8 @@ class DhlPickupPendingSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     _attr_icon = "mdi:store-clock"
     _attr_native_unit_of_measurement = "parcels"
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_attribution = "Data provided by DHL"
+    _unrecorded_attributes = frozenset({"parcels"})
 
     def __init__(
         self,
@@ -487,6 +497,8 @@ class DhlDeliveredParcelsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity)
     _attr_icon = "mdi:package-variant"
     _attr_native_unit_of_measurement = "parcels"
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_attribution = "Data provided by DHL"
+    _unrecorded_attributes = frozenset({"parcels"})
 
     def __init__(
         self,
