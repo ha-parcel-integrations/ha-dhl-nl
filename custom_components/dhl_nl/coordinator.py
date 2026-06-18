@@ -177,11 +177,11 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=entry,
             name=DOMAIN,
             update_interval=timedelta(seconds=POLL_INTERVAL),
         )
         self._client = client
-        self._entry = entry
         self.delivered: list[dict] = []
         # barcode -> last seen ParcelStatus. ``None`` on the first refresh so
         # we can suppress events for parcels that already existed when the
@@ -252,7 +252,7 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
 
     def _apply_delivered_filter(self, parcels: list[dict]) -> list[dict]:
         """Apply the configured filter to the delivered parcels list."""
-        options = self._entry.options
+        options = self.config_entry.options
         filter_type = options.get(CONF_DELIVERED_FILTER_TYPE, DEFAULT_DELIVERED_FILTER_TYPE)
         filter_amount = int(options.get(CONF_DELIVERED_FILTER_AMOUNT, DEFAULT_DELIVERED_FILTER_AMOUNT))
 
