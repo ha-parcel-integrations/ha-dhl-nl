@@ -1,0 +1,18 @@
+# Compact at-a-glance row showing the four counters that matter day to
+# day: incoming active, awaiting pickup, en route to a ServicePoint, and
+# recently delivered. Stack on top of the active-parcels grid for a
+# complete view.
+
+type: glance
+title: DHL
+show_icon: true
+columns: 4
+entities:
+  - entity: sensor.dhl_incoming_parcels
+    name: Onderweg
+  - entity: sensor.dhl_awaiting_pickup
+    name: Klaar
+  - entity: sensor.dhl_en_route_to_service_point
+    name: Naar SP
+  - entity: sensor.dhl_delivered_parcels
+    name: Recent

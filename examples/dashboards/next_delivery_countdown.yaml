@@ -1,0 +1,19 @@
+# Single-entity card showing when the next DHL parcel is expected, with
+# a relative-time chip. The native_value of sensor.dhl_next_delivery is
+# a timezone-aware datetime, so HA renders it as "in 3 hours" or
+# "tomorrow at 14:00" automatically.
+
+type: entities
+title: Eerstvolgende bezorging
+entities:
+  - entity: sensor.dhl_next_delivery
+    name: Verwacht
+    secondary_info: last-updated
+  - type: attribute
+    entity: sensor.dhl_next_delivery
+    attribute: barcode
+    name: Barcode
+  - type: attribute
+    entity: sensor.dhl_next_delivery
+    attribute: sender
+    name: Afzender

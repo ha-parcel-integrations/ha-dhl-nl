@@ -1,0 +1,34 @@
+# Markdown card that renders every active incoming DHL parcel as a row
+# with sender, normalised status and a clickable tracking link. Hides
+# itself when there are no active parcels.
+#
+# Drop into a stack or vertical-stack card; paste in the raw YAML editor
+# of any markdown card.
+
+type: conditional
+conditions:
+  - condition: numeric_state
+    entity: sensor.dhl_incoming_parcels
+    above: 0
+card:
+  type: markdown
+  title: DHL pakketten
+  content: >-
+    {% set labels = {
+      'registered': 'aangemeld',
+      'in_transit': 'onderweg',
+      'out_for_delivery': 'bezorging vandaag',
+      'at_pickup_point': 'klaar bij ServicePoint',
+      'delivered': 'bezorgd',
+      'returning': 'retour naar afzender',
+      'unknown': 'status onbekend'
+    } %}
+    {% for p in state_attr('sensor.dhl_incoming_parcels', 'parcels') or [] -%}
+    {% set sender = p.sender or 'Onbekende afzender' -%}
+    {% set status = labels.get(p.status, p.status) -%}
+    {%- if p.url %}
+    - [{{ sender }}]({{ p.url }}) — {{ status }}
+    {%- else %}
+    - {{ sender }} — {{ status }}
+    {%- endif %}
+    {% endfor %}
