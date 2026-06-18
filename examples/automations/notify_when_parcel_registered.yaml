@@ -1,0 +1,28 @@
+# Notify when a new parcel appears in the DHL account.
+#
+# Useful when you want to know that a webshop has handed off a label to
+# DHL — typically a day or two before delivery.
+
+alias: "DHL: new parcel registered"
+description: Notify when DHL announces a new parcel for the account.
+mode: queued
+max: 10
+
+triggers:
+  - trigger: event
+    event_type: dhl_nl_parcel_registered
+
+actions:
+  - action: notify.mobile_app
+    data:
+      title: "Pakket onderweg"
+      message: >-
+        {{ trigger.event.data.sender }} – verwacht
+        {% if trigger.event.data.planned_from %}
+        {{ as_timestamp(trigger.event.data.planned_from)
+           | timestamp_custom('%a %-d %b') }}
+        {% else %}
+        binnenkort
+        {% endif %}
+      data:
+        clickAction: "{{ trigger.event.data.url }}"

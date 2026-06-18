@@ -1,0 +1,25 @@
+# Speak the expected delivery window for the next active parcel one
+# hour before the planned_from timestamp. Uses the Next delivery sensor
+# directly instead of an event.
+
+alias: "DHL: announce next delivery window"
+description: Speak the next delivery window an hour before the window opens.
+mode: single
+
+triggers:
+  - trigger: template
+    value_template: >-
+      {% set when = states('sensor.dhl_next_delivery') %}
+      {% if when not in ('unknown', 'unavailable') %}
+        {{ (as_datetime(when) - now()).total_seconds() | int == 3600 }}
+      {% endif %}
+
+actions:
+  - action: tts.cloud_say
+    data:
+      entity_id: media_player.living_room
+      message: >-
+        Pakket onderweg, verwacht tussen
+        {{ now().strftime('%H:%M') }} en
+        {{ (as_datetime(states('sensor.dhl_next_delivery'))
+            + timedelta(hours=2)).strftime('%H:%M') }}.

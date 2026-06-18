@@ -1,0 +1,25 @@
+# Notify when a parcel arrives at a DHL ServicePoint and is ready for
+# pickup. Triggers on the normalised AT_PICKUP_POINT status; the raw DHL
+# status equivalent is
+# "NOTIFICATION_FOR_PARCELSHOP_COLLECTION_HAS_BEEN_SENT".
+
+alias: "DHL: parcel ready at ServicePoint"
+description: Notify when a DHL parcel arrives at a ServicePoint for pickup.
+mode: queued
+max: 10
+
+triggers:
+  - trigger: event
+    event_type: dhl_nl_parcel_status_changed
+    event_data:
+      new_status: at_pickup_point
+
+actions:
+  - action: notify.mobile_app
+    data:
+      title: "Pakket klaar bij ServicePoint"
+      message: >-
+        {{ trigger.event.data.sender }} ligt klaar bij
+        {{ trigger.event.data.pickup_point or 'het ServicePoint' }}.
+      data:
+        clickAction: "{{ trigger.event.data.url }}"

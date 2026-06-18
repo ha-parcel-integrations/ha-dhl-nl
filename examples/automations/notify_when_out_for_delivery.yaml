@@ -1,0 +1,23 @@
+# Notify exactly once per parcel when DHL says it's on the delivery
+# vehicle today. Filters on the normalised ParcelStatus.OUT_FOR_DELIVERY
+# value so this is independent of DHL's raw status strings.
+
+alias: "DHL: parcel out for delivery"
+description: Notify when a DHL parcel goes out for delivery today.
+mode: queued
+max: 10
+
+triggers:
+  - trigger: event
+    event_type: dhl_nl_parcel_status_changed
+    event_data:
+      new_status: out_for_delivery
+
+actions:
+  - action: notify.mobile_app
+    data:
+      title: "Pakket onderweg vandaag"
+      message: >-
+        {{ trigger.event.data.sender }} – {{ trigger.event.data.barcode }}
+      data:
+        clickAction: "{{ trigger.event.data.url }}"
