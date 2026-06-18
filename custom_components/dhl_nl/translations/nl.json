@@ -59,5 +59,30 @@
         "parcels": "Aantal pakketten"
       }
     }
+  },
+  "entity": {
+    "sensor": {
+      "incoming_parcels": {
+        "name": "Binnenkomende pakketten"
+      },
+      "outgoing_parcels": {
+        "name": "Uitgaande pakketten"
+      },
+      "next_delivery": {
+        "name": "Eerstvolgende bezorging"
+      },
+      "en_route_to_service_point": {
+        "name": "Onderweg naar ServicePoint"
+      },
+      "awaiting_pickup": {
+        "name": "Klaar voor afhalen"
+      },
+      "delivered_parcels": {
+        "name": "Bezorgde pakketten"
+      },
+      "parcel": {
+        "name": "Pakket {barcode}"
+      }
+    }
   }
 }

@@ -59,5 +59,30 @@
         "parcels": "Number of parcels"
       }
     }
+  },
+  "entity": {
+    "sensor": {
+      "incoming_parcels": {
+        "name": "Incoming parcels"
+      },
+      "outgoing_parcels": {
+        "name": "Outgoing parcels"
+      },
+      "next_delivery": {
+        "name": "Next delivery"
+      },
+      "en_route_to_service_point": {
+        "name": "En route to ServicePoint"
+      },
+      "awaiting_pickup": {
+        "name": "Awaiting pickup"
+      },
+      "delivered_parcels": {
+        "name": "Delivered parcels"
+      },
+      "parcel": {
+        "name": "Parcel {barcode}"
+      }
+    }
   }
 }

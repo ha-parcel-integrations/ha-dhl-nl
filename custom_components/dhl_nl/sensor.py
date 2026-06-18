@@ -133,7 +133,8 @@ class DhlIncomingParcelsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     drops out of the coordinator data — see ``DhlParcelSensor``.
     """
 
-    _attr_name = "DHL Incoming Parcels"
+    _attr_has_entity_name = True
+    _attr_translation_key = "incoming_parcels"
     _attr_icon = "mdi:package-variant-closed"
     _attr_native_unit_of_measurement = "parcels"
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -198,6 +199,8 @@ class DhlIncomingParcelsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
 class DhlParcelSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     """Per-parcel sensor reporting the status of a single incoming DHL shipment."""
 
+    _attr_has_entity_name = True
+    _attr_translation_key = "parcel"
     _attr_icon = "mdi:package-variant-closed"
     _attr_attribution = "Data provided by DHL"
 
@@ -213,7 +216,7 @@ class DhlParcelSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
         self._barcode = barcode
         user_id: str = user_info.get("userId", "")
         self._attr_unique_id = f"{user_id}_{barcode}"
-        self._attr_name = f"DHL Parcel {barcode}"
+        self._attr_translation_placeholders = {"barcode": barcode}
         self._attr_device_info = _build_device_info(user_info)
 
     # ------------------------------------------------------------------
@@ -257,7 +260,8 @@ class DhlSentShipmentsSensor(
     single entity.
     """
 
-    _attr_name = "DHL Outgoing Parcels"
+    _attr_has_entity_name = True
+    _attr_translation_key = "outgoing_parcels"
     _attr_icon = "mdi:package-variant-closed"
     _attr_native_unit_of_measurement = "parcels"
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -302,7 +306,8 @@ class DhlNextDeliverySensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     have a known delivery time indication.
     """
 
-    _attr_name = "DHL Next Delivery"
+    _attr_has_entity_name = True
+    _attr_translation_key = "next_delivery"
     _attr_icon = "mdi:clock-fast"
     _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_attribution = "Data provided by DHL"
@@ -363,7 +368,8 @@ class DhlEnRouteToServicePointSensor(CoordinatorEntity[DhlCoordinator], SensorEn
     destined active parcels are included.
     """
 
-    _attr_name = "DHL Parcels En Route to ServicePoint"
+    _attr_has_entity_name = True
+    _attr_translation_key = "en_route_to_service_point"
     _attr_icon = "mdi:truck-delivery"
     _attr_native_unit_of_measurement = "parcels"
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -406,7 +412,8 @@ class DhlPickupPendingSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     pending pickup parcels is exposed as an attribute.
     """
 
-    _attr_name = "DHL Parcels Awaiting Pickup"
+    _attr_has_entity_name = True
+    _attr_translation_key = "awaiting_pickup"
     _attr_icon = "mdi:store-clock"
     _attr_native_unit_of_measurement = "parcels"
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -447,7 +454,8 @@ class DhlPickupPendingSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
 class DhlDeliveredParcelsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     """Sensor reporting recently delivered incoming DHL parcels."""
 
-    _attr_name = "DHL Delivered Parcels"
+    _attr_has_entity_name = True
+    _attr_translation_key = "delivered_parcels"
     _attr_icon = "mdi:package-variant"
     _attr_native_unit_of_measurement = "parcels"
     _attr_state_class = SensorStateClass.MEASUREMENT
