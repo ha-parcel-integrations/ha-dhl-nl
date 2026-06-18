@@ -207,8 +207,8 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
         self.delivered = [normalize_parcel(p) for p in delivered]
         normalized_active = [normalize_parcel(p) for p in active]
 
-        # Track current state so the next refresh can detect "new parcel" and
-        # "status changed" transitions. Events are fired in a follow-up.
+        self._fire_change_events(normalized_active)
+
         self._known_state = {
             p["barcode"]: p["status"]
             for p in normalized_active
@@ -216,6 +216,39 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
         }
 
         return normalized_active
+
+    def _fire_change_events(self, parcels: list[dict]) -> None:
+        """Fire events for newly-registered parcels and status transitions.
+
+        Silent on the very first refresh — we cannot reliably know which
+        parcels are "new" to the user vs. "already there before HA started".
+        From the second refresh onward, every parcel that was not present
+        before yields one ``dhl_nl_parcel_registered`` event, and every
+        parcel whose normalized status changed yields one
+        ``dhl_nl_parcel_status_changed`` event.
+        """
+        if self._known_state is None:
+            return
+
+        for parcel in parcels:
+            barcode = parcel.get("barcode")
+            if not barcode:
+                continue
+            new_status = parcel["status"]
+            if barcode not in self._known_state:
+                self.hass.bus.async_fire(
+                    f"{DOMAIN}_parcel_registered",
+                    {**parcel},
+                )
+            elif self._known_state[barcode] != new_status:
+                self.hass.bus.async_fire(
+                    f"{DOMAIN}_parcel_status_changed",
+                    {
+                        **parcel,
+                        "old_status": self._known_state[barcode],
+                        "new_status": new_status,
+                    },
+                )
 
     def _apply_delivered_filter(self, parcels: list[dict]) -> list[dict]:
         """Apply the configured filter to the delivered parcels list."""

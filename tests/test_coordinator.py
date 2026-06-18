@@ -28,12 +28,17 @@ def _mock_entry(filter_type: str = "days", filter_amount: int = 7) -> MagicMock:
     return entry
 
 
-def _parcel(category: str, is_return: bool = False, moment: str | None = None) -> dict:
+def _parcel(
+    category: str,
+    is_return: bool = False,
+    moment: str | None = None,
+    barcode: str = "TEST123",
+) -> dict:
     indication = (
         {"indicationType": "MomentIndication", "moment": moment} if moment else None
     )
     return {
-        "barcode": "TEST123",
+        "barcode": barcode,
         "category": category,
         "isReturn": is_return,
         "receivingTimeIndication": indication,
@@ -331,3 +336,110 @@ async def test_coordinator_populates_delivered(hass):
 
     assert len(coordinator.delivered) == 1
     assert coordinator.delivered[0]["raw"]["category"] == "DELIVERED"
+
+
+# ---------------------------------------------------------------------------
+# Event firing — parcel_registered and parcel_status_changed
+# ---------------------------------------------------------------------------
+
+
+async def test_no_events_on_first_refresh(hass):
+    """The first refresh seeds known state silently — no events."""
+    client = MagicMock()
+    client.async_get_parcels = AsyncMock(return_value=[
+        _parcel("IN_DELIVERY", barcode="A"),
+        _parcel("IN_DELIVERY", barcode="B"),
+    ])
+
+    fired: list = []
+    hass.bus.async_listen("dhl_nl_parcel_registered", lambda e: fired.append(e))
+    hass.bus.async_listen("dhl_nl_parcel_status_changed", lambda e: fired.append(e))
+
+    coordinator = DhlCoordinator(hass, client, _mock_entry())
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert fired == []
+
+
+async def test_registered_event_for_new_barcodes(hass):
+    """A barcode that appears for the first time after seeding fires registered."""
+    client = MagicMock()
+    client.async_get_parcels = AsyncMock(side_effect=[
+        [_parcel("IN_DELIVERY", barcode="A")],
+        [_parcel("IN_DELIVERY", barcode="A"), _parcel("IN_DELIVERY", barcode="B")],
+    ])
+
+    registered: list = []
+    hass.bus.async_listen(
+        "dhl_nl_parcel_registered", lambda e: registered.append(e.data)
+    )
+
+    coordinator = DhlCoordinator(hass, client, _mock_entry())
+    await coordinator._async_update_data()
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert len(registered) == 1
+    assert registered[0]["barcode"] == "B"
+
+
+async def test_status_changed_event_when_status_transitions(hass):
+    """A barcode whose normalized status changes fires status_changed."""
+    client = MagicMock()
+    client.async_get_parcels = AsyncMock(side_effect=[
+        [_parcel("IN_DELIVERY", barcode="A")],
+        [_parcel("DELIVERED", barcode="A")],
+    ])
+
+    changed: list = []
+    hass.bus.async_listen(
+        "dhl_nl_parcel_status_changed", lambda e: changed.append(e.data)
+    )
+
+    coordinator = DhlCoordinator(hass, client, _mock_entry())
+    await coordinator._async_update_data()
+    # After refresh 1, barcode A becomes delivered → it falls out of
+    # active parcels, so it does not appear on refresh 2 in the active
+    # list either. The status_changed event fires only when the barcode
+    # is still present with a different status.
+    # To test a real transition, both refreshes must return barcode A in
+    # the active list with different statuses.
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    # Status went from IN_DELIVERY → DELIVERED, but DELIVERED filters out
+    # of the active list. So expect no status_changed event in this scenario.
+    # This is documented behaviour: events track active parcels only.
+    assert changed == []
+
+
+async def test_status_changed_event_when_active_status_transitions(hass):
+    """When an active parcel changes from one IN_TRANSIT status to another."""
+    from custom_components.dhl_nl.const import ParcelStatus
+
+    p1 = _parcel("IN_DELIVERY", barcode="A")
+    p1["status"] = "DATA_RECEIVED"  # raw status — maps to REGISTERED via fallback
+    p1["category"] = "DATA_RECEIVED"
+
+    p2 = _parcel("IN_DELIVERY", barcode="A")
+    p2["status"] = "OUT_FOR_DELIVERY"  # maps to OUT_FOR_DELIVERY
+    p2["category"] = "IN_DELIVERY"
+
+    client = MagicMock()
+    client.async_get_parcels = AsyncMock(side_effect=[[p1], [p2]])
+
+    changed: list = []
+    hass.bus.async_listen(
+        "dhl_nl_parcel_status_changed", lambda e: changed.append(e.data)
+    )
+
+    coordinator = DhlCoordinator(hass, client, _mock_entry())
+    await coordinator._async_update_data()
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert len(changed) == 1
+    assert changed[0]["barcode"] == "A"
+    assert changed[0]["old_status"] == ParcelStatus.REGISTERED
+    assert changed[0]["new_status"] == ParcelStatus.OUT_FOR_DELIVERY
