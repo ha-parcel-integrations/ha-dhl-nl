@@ -183,6 +183,10 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
         self._client = client
         self._entry = entry
         self.delivered: list[dict] = []
+        # barcode -> last seen ParcelStatus. ``None`` on the first refresh so
+        # we can suppress events for parcels that already existed when the
+        # integration started (we do not know their previous state).
+        self._known_state: dict[str, ParcelStatus] | None = None
 
     async def _async_update_data(self) -> list[dict]:
         try:
@@ -201,7 +205,17 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
             len(raw), len(active), len(delivered),
         )
         self.delivered = [normalize_parcel(p) for p in delivered]
-        return [normalize_parcel(p) for p in active]
+        normalized_active = [normalize_parcel(p) for p in active]
+
+        # Track current state so the next refresh can detect "new parcel" and
+        # "status changed" transitions. Events are fired in a follow-up.
+        self._known_state = {
+            p["barcode"]: p["status"]
+            for p in normalized_active
+            if p.get("barcode")
+        }
+
+        return normalized_active
 
     def _apply_delivered_filter(self, parcels: list[dict]) -> list[dict]:
         """Apply the configured filter to the delivered parcels list."""
