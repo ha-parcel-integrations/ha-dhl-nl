@@ -145,44 +145,17 @@ already in your account before HA started.
 See [`examples/automations/`](examples/automations/) for ready-to-paste
 event-driven automations.
 
-## Example dashboard card
+## Examples
 
-Shows active incoming parcels with sender and delivery window. Only visible when at least one parcel is active.
+The [`examples/`](examples/) folder ships ready-to-paste snippets for
+both automations and dashboards. Highlights:
 
-Replace `<account>` with your own entity name.
-
-```yaml
-- type: grid
-  cards:
-    - type: heading
-      heading: Pakketten onderweg
-      heading_style: title
-      icon: mdi:package-variant-closed
-
-    - type: markdown
-      content: >-
-        {% set ent = 'sensor.dhl_<account>_dhl_incoming_parcels' -%}
-        {% set m = 'jan feb mrt apr mei jun jul aug sep okt nov dec'.split() -%}
-        {% set labels = {
-          'DATA_RECEIVED': 'aangemeld bij DHL',
-          'UNDERWAY': 'onderweg'
-        } -%}
-        {% macro hm(d) -%}{{ d.strftime('%-H') }}{{ ':' ~ d.strftime('%M') if d.minute }}{%- endmacro -%}
-        {% for p in state_attr(ent, 'parcels') or [] -%}
-        {% set ti = p.receivingTimeIndication -%}
-        {% set cat = p.category | default('', true) -%}
-        {% set label = labels[cat] if cat in labels else cat | lower | replace('_', ' ') -%}
-        {% set sender = p.sender.name if p.sender and p.sender.name else 'onbekende afzender' -%}
-        - 📦 DHL van **{{ sender }}**{% if ti and ti.start and ti.end %}{% set s =
-        as_datetime(ti.start) %}{% set e = as_datetime(ti.end) %} · {{ s.day }} {{
-        m[s.month - 1] }}, {{ hm(s) }}–{{ hm(e) }}u{% else %} · {{ label }}{% endif %}
-        {% endfor -%}
-
-  visibility:
-    - condition: numeric_state
-      above: 0
-      entity: sensor.dhl_<account>_dhl_incoming_parcels
-```
+- [`examples/automations/notify_when_parcel_registered.yaml`](examples/automations/notify_when_parcel_registered.yaml) — push notification when DHL announces a new parcel.
+- [`examples/automations/notify_when_out_for_delivery.yaml`](examples/automations/notify_when_out_for_delivery.yaml) — alert exactly once per parcel when it's on the truck today.
+- [`examples/automations/notify_when_at_servicepoint.yaml`](examples/automations/notify_when_at_servicepoint.yaml) — alert when a parcel arrives at a ServicePoint for pickup.
+- [`examples/dashboards/active_parcels_grid.yaml`](examples/dashboards/active_parcels_grid.yaml) — markdown card listing every active parcel with sender, normalised status and tracking link.
+- [`examples/dashboards/summary_glance.yaml`](examples/dashboards/summary_glance.yaml) — compact glance row with the day-to-day counters.
+- [`examples/dashboards/next_delivery_countdown.yaml`](examples/dashboards/next_delivery_countdown.yaml) — single card showing the next expected delivery and details.
 
 ## Troubleshooting
 
