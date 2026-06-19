@@ -102,6 +102,24 @@ This mapping is shared across the carriers: PostNL and DPD use the same
 `ParcelStatus` values with their own raw-status mappings, so a single
 event-driven automation can act on `status` regardless of carrier.
 
+## Events
+
+The coordinator fires events on the HA event bus when something
+interesting happens to a parcel, so automations can react without
+polling per-parcel sensors.
+
+| Event | When | Payload |
+|---|---|---|
+| `dhl_nl_parcel_registered` | A new barcode appears in the active list | The full normalised parcel dict (`barcode`, `sender`, `status`, `raw_status`, `delivered`, `delivered_at`, `planned_from`, `planned_to`, `pickup`, `pickup_point`, `url`, `raw`) |
+| `dhl_nl_parcel_status_changed` | A known barcode's normalised `status` value changes | Same payload as above plus `old_status` and `new_status` |
+
+The coordinator suppresses events on the very first refresh after start-up
+so you don't get a stampede of "registered" events for parcels that were
+already in your account before HA started.
+
+See [`examples/automations/`](examples/automations/) for ready-to-paste
+event-driven automations.
+
 ## Example dashboard card
 
 Shows active incoming parcels with sender and delivery window. Only visible when at least one parcel is active.
