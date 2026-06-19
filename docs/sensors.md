@@ -114,11 +114,12 @@ original DHL value available for power users.
 | `status` | Meaning | DHL raw status / category that maps here |
 |---|---|---|
 | `registered` | DHL knows about the label but the parcel is not yet in transit | category `DATA_RECEIVED` or `LEG` |
-| `in_transit` | Picked up; somewhere in DHL's network | category `UNDERWAY`, `IN_DELIVERY`, `CUSTOMS`, `INTERVENTION`, `EXCEPTION`, or `PROBLEM` |
+| `in_transit` | Picked up; somewhere in DHL's network | category `UNDERWAY`, `IN_DELIVERY`, or `CUSTOMS` |
 | `out_for_delivery` | On the delivery vehicle today | raw status `OUT_FOR_DELIVERY` |
 | `at_pickup_point` | Arrived at the chosen ServicePoint, ready to be collected | raw status `NOTIFICATION_FOR_PARCELSHOP_COLLECTION_HAS_BEEN_SENT` |
 | `delivered` | Handed over, dropped in mailbox, or picked up | category `DELIVERED` or raw status `COLLECTED_AT_PARCELSHOP` |
 | `returning` | Failed delivery, on the way back | (not yet observed; will be added once the raw indicator is confirmed) |
+| `problem` | Carrier reports an exception, intervention, or other issue | category `INTERVENTION`, `EXCEPTION`, or `PROBLEM` |
 | `unknown` | Raw status/category we have not mapped yet | anything else — logged once at info level |
 
 ---

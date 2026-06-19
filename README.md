@@ -116,11 +116,12 @@ the raw value stays available on `raw_status` for power users.
 | `status` | Meaning | DHL raw status / category that maps here |
 |---|---|---|
 | `registered` | DHL knows about the label but the parcel is not yet in transit | category `DATA_RECEIVED` or `LEG` |
-| `in_transit` | Picked up; somewhere in DHL's network | category `UNDERWAY`, `IN_DELIVERY`, `CUSTOMS`, `INTERVENTION`, `EXCEPTION`, or `PROBLEM` (when no more specific raw status is set) |
+| `in_transit` | Picked up; somewhere in DHL's network | category `UNDERWAY`, `IN_DELIVERY`, or `CUSTOMS` |
 | `out_for_delivery` | On the delivery vehicle today | raw status `OUT_FOR_DELIVERY` |
 | `at_pickup_point` | Arrived at the chosen ServicePoint, ready to be collected | raw status `NOTIFICATION_FOR_PARCELSHOP_COLLECTION_HAS_BEEN_SENT` |
 | `delivered` | Handed over to the recipient, mailbox, neighbour, or picked up at a ServicePoint | category `DELIVERED` or raw status `COLLECTED_AT_PARCELSHOP` |
 | `returning` | Failed delivery, on the way back to the sender | (not yet observed; will be added once the raw indicator is confirmed) |
+| `problem` | Carrier reports an exception, intervention, or other issue with the parcel | category `INTERVENTION`, `EXCEPTION`, or `PROBLEM` |
 | `unknown` | Raw status/category we have not mapped yet | anything else — logged once at info level so it can be added to the map |
 
 This mapping is shared across the carriers: PostNL and DPD use the same
