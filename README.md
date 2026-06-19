@@ -54,6 +54,14 @@ parcels filter:
 | Filter by | `Days` keeps delivered parcels visible for the last N days. `Number of parcels` keeps only the N most recent regardless of age. |
 | Amount | The N used by the filter above. |
 
+## Removal
+
+Standard HA removal applies: **Settings → Devices & Services →
+DHL NL → ⋮ → Delete**. No DHL-side cleanup is needed; deleting the
+config entry stops the polling. To revoke API access entirely, change
+your DHL account password — the integration will trigger a re-auth
+notification, which you can then ignore.
+
 ## Sensors
 
 The integration creates one device per DHL account, named
