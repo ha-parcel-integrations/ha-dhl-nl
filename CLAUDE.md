@@ -17,9 +17,12 @@ you only "know" from training data.
 | Config flow, options flow, reauth, reconfigure | https://developers.home-assistant.io/docs/config_entries_config_flow_handler |
 | DataUpdateCoordinator pattern | https://developers.home-assistant.io/docs/integration_fetching_data |
 | Quality scale rules | https://developers.home-assistant.io/docs/core/integration-quality-scale |
-| Diagnostics | https://developers.home-assistant.io/docs/integration_diagnostics |
+| Diagnostics | https://developers.home-assistant.io/docs/core/integration/diagnostics |
 | Translations | https://developers.home-assistant.io/docs/internationalization/core |
-| Brand registration | https://developers.home-assistant.io/docs/creating_integration_brand |
+
+Branding is handled by the local `brand/` folder (HACS reads `icon.png`
+from it). The official `home-assistant/brands` repo is for HA Core
+integrations and does not apply here.
 
 ### Recent developer-facing changes
 
