@@ -13,7 +13,7 @@ A custom Home Assistant integration that tracks your incoming and outgoing DHL e
 
 ## Requirements
 
-- Home Assistant 2024.1 or newer
+- Home Assistant 2024.7 or newer
 - A [DHL eCommerce NL](https://my.dhlecommerce.nl) account (the consumer portal, not the business API)
 
 ## Installation
@@ -157,6 +157,21 @@ both automations and dashboards. Highlights:
 - [`examples/dashboards/active_parcels_grid.yaml`](examples/dashboards/active_parcels_grid.yaml) — markdown card listing every active parcel with sender, normalised status and tracking link.
 - [`examples/dashboards/summary_glance.yaml`](examples/dashboards/summary_glance.yaml) — compact glance row with the day-to-day counters.
 - [`examples/dashboards/next_delivery_countdown.yaml`](examples/dashboards/next_delivery_countdown.yaml) — single card showing the next expected delivery and details.
+
+## Debugging
+
+To capture verbose information about the DHL API responses (useful when reporting a bug or helping map a new status value), enable debug logging for the integration:
+
+1. Add this to your `configuration.yaml`:
+   ```yaml
+   logger:
+     default: warning
+     logs:
+       custom_components.dhl_nl: debug
+   ```
+2. Restart Home Assistant.
+3. Wait for the next poll cycle (or reload the integration from **Settings → Devices & Services → DHL NL → ⋮ → Reload**).
+4. Open **Settings → System → Logs**, filter for `dhl_nl`, and copy the relevant log lines (including the `DHL parcels fetched: ...` summary) into your bug report or message to the maintainer.
 
 ## Troubleshooting
 
