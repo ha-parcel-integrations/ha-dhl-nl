@@ -72,12 +72,12 @@ their entity_ids carry the same account suffix:
 | Friendly name pattern | Description |
 |---|---|
 | `DHL (account) Incoming parcels` | Number of active incoming parcels |
-| `DHL (account) Parcel <barcode>` | Normalised status of a single incoming shipment |
+| `DHL (account) Parcel <barcode>` | Canonical status of a single incoming shipment |
 | `DHL (account) Next delivery` | Earliest expected delivery datetime |
 | `DHL (account) En route to ServicePoint` | Parcels in transit to a ServicePoint |
 | `DHL (account) Awaiting pickup` | Parcels ready for collection at a ServicePoint |
 | `DHL (account) Delivered parcels` | Recently delivered parcels (configurable window) |
-| `DHL (account) Outgoing parcels` | Number of active outgoing shipments |
+| `DHL (account) Outgoing parcels` | Number of active outgoing parcels |
 
 Every parcel exposed on a sensor attribute uses a carrier-agnostic shape:
 
@@ -86,8 +86,8 @@ Every parcel exposed on a sensor attribute uses a carrier-agnostic shape:
 | `carrier` | string | `"DHL"` |
 | `barcode` | string | Parcel tracking number |
 | `sender` | string \| null | Sender name (e.g. webshop) |
-| `status` | `ParcelStatus` | Normalised status — see the [status reference](#parcel-status-reference) |
-| `raw_status` | string | Original DHL status string (for power users) |
+| `status` | `ParcelStatus` | Canonical status — see the [status reference](#parcel-status-reference) |
+| `raw_status` | string \| null | Original DHL status string (for power users) |
 | `delivered` | bool | Whether the parcel has been delivered |
 | `delivered_at` | ISO 8601 \| null | Delivery moment, if known |
 | `planned_from` | ISO 8601 \| null | Expected delivery window start |
