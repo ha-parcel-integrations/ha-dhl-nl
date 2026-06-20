@@ -202,6 +202,7 @@ class DhlParcelSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     _attr_has_entity_name = True
     _attr_translation_key = "parcel"
     _attr_attribution = "Data provided by DHL"
+    _unrecorded_attributes = frozenset({"raw"})
 
     def __init__(
         self,
