@@ -100,7 +100,7 @@ as attributes on this single sensor.
 
 | Attribute | Description |
 |-----------|-------------|
-| `shipments` | List of normalised active outgoing shipments |
+| `parcels` | List of normalised active outgoing shipments |
 
 ---
 

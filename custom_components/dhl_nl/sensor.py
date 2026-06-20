@@ -263,7 +263,7 @@ class DhlSentShipmentsSensor(
     _attr_translation_key = "outgoing_parcels"
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_attribution = "Data provided by DHL"
-    _unrecorded_attributes = frozenset({"shipments"})
+    _unrecorded_attributes = frozenset({"parcels"})
 
     def __init__(
         self,
@@ -289,7 +289,7 @@ class DhlSentShipmentsSensor(
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return the full list of active sent shipments as an attribute."""
-        return {"shipments": self.coordinator.data or []}
+        return {"parcels": self.coordinator.data or []}
 
 
 class DhlNextDeliverySensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
