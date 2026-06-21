@@ -158,6 +158,17 @@ both automations and dashboards. Highlights:
 - [`examples/dashboards/summary_glance.yaml`](examples/dashboards/summary_glance.yaml) — compact glance row with the day-to-day counters.
 - [`examples/dashboards/next_delivery_countdown.yaml`](examples/dashboards/next_delivery_countdown.yaml) — single card showing the next expected delivery and details.
 
+### Community Lovelace cards
+
+If you want a richer UI than the snippets above, two third-party cards
+work nicely with this integration's sensors:
+
+- [klaptafel/ha-package-tracker-card](https://github.com/klaptafel/ha-package-tracker-card) — purpose-built card for parcel integrations; renders each parcel with sender, status and tracking link.
+- [jimz011/hki-elements](https://github.com/jimz011/hki-elements) — collection of Home Kit-style elements that pair well with the per-parcel sensors for a cleaner dashboard.
+
+Both are maintained by their respective authors — please raise UI issues
+in those repos.
+
 ## Debugging
 
 To capture verbose information about the DHL API responses (useful when reporting a bug or helping map a new status value), enable debug logging for the integration:
