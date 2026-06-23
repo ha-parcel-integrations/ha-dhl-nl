@@ -161,6 +161,32 @@ def filter_active_sent_shipments(shipments: list[dict]) -> list[dict]:
     ]
 
 
+def sort_parcels_by_ts(
+    parcels: list[dict], key_field: str, *, descending: bool = False
+) -> list[dict]:
+    """Return normalized parcels sorted by the ISO timestamp at ``key_field``.
+
+    Parcels whose value is missing or unparseable always sort to the end,
+    regardless of ``descending`` — so freshly registered parcels without
+    an ETA stay visible at the bottom instead of jumping to the top.
+    """
+    with_ts: list[tuple[datetime, dict]] = []
+    without_ts: list[dict] = []
+    for parcel in parcels:
+        value = parcel.get(key_field)
+        if not isinstance(value, str) or not value:
+            without_ts.append(parcel)
+            continue
+        try:
+            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            without_ts.append(parcel)
+            continue
+        with_ts.append((dt, parcel))
+    with_ts.sort(key=lambda item: item[0], reverse=descending)
+    return [p for _, p in with_ts] + without_ts
+
+
 class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
     """Coordinator that polls the DHL parcels API on a fixed schedule."""
 
@@ -201,8 +227,14 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
             "DHL parcels fetched: %d total, %d active, %d delivered",
             len(raw), len(active), len(delivered),
         )
-        self.delivered = [normalize_parcel(p) for p in delivered]
-        normalized_active = [normalize_parcel(p) for p in active]
+        self.delivered = sort_parcels_by_ts(
+            [normalize_parcel(p) for p in delivered],
+            "delivered_at",
+            descending=True,
+        )
+        normalized_active = sort_parcels_by_ts(
+            [normalize_parcel(p) for p in active], "planned_from"
+        )
 
         self._fire_change_events(normalized_active)
 
@@ -311,4 +343,6 @@ class DhlSentShipmentsCoordinator(DataUpdateCoordinator[list[dict]]):
         _LOGGER.debug(
             "DHL sent shipments fetched: %d total, %d active", len(raw), len(active)
         )
-        return [normalize_parcel(s) for s in active]
+        return sort_parcels_by_ts(
+            [normalize_parcel(s) for s in active], "planned_from"
+        )

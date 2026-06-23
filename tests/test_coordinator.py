@@ -16,6 +16,7 @@ from custom_components.dhl_nl.coordinator import (
     filter_active_sent_shipments,
     filter_delivered_parcels,
     normalize_parcel,
+    sort_parcels_by_ts,
 )
 
 
@@ -443,3 +444,61 @@ async def test_status_changed_event_when_active_status_transitions(hass):
     assert changed[0]["barcode"] == "A"
     assert changed[0]["old_status"] == ParcelStatus.REGISTERED
     assert changed[0]["new_status"] == ParcelStatus.OUT_FOR_DELIVERY
+
+
+# ---------------------------------------------------------------------------
+# sort_parcels_by_ts
+# ---------------------------------------------------------------------------
+
+
+def _norm(barcode: str, planned_from: str | None = None, delivered_at: str | None = None) -> dict:
+    return {
+        "barcode": barcode,
+        "planned_from": planned_from,
+        "delivered_at": delivered_at,
+    }
+
+
+def test_sort_orders_ascending_by_planned_from():
+    parcels = [
+        _norm("late", planned_from="2026-06-15T10:00:00+00:00"),
+        _norm("early", planned_from="2026-06-13T08:00:00+00:00"),
+        _norm("mid", planned_from="2026-06-14T12:00:00+00:00"),
+    ]
+    ordered = [p["barcode"] for p in sort_parcels_by_ts(parcels, "planned_from")]
+    assert ordered == ["early", "mid", "late"]
+
+
+def test_sort_orders_descending_for_delivered_at():
+    parcels = [
+        _norm("oldest", delivered_at="2026-06-13T08:00:00+00:00"),
+        _norm("newest", delivered_at="2026-06-15T10:00:00+00:00"),
+        _norm("mid", delivered_at="2026-06-14T12:00:00+00:00"),
+    ]
+    ordered = [p["barcode"] for p in sort_parcels_by_ts(parcels, "delivered_at", descending=True)]
+    assert ordered == ["newest", "mid", "oldest"]
+
+
+def test_sort_keeps_missing_or_garbage_timestamps_at_end():
+    parcels = [
+        _norm("no-ts"),
+        _norm("garbage", planned_from="not-a-date"),
+        _norm("early", planned_from="2026-06-13T08:00:00+00:00"),
+        _norm("late", planned_from="2026-06-15T10:00:00+00:00"),
+    ]
+    ordered = [p["barcode"] for p in sort_parcels_by_ts(parcels, "planned_from")]
+    assert ordered[:2] == ["early", "late"]
+    assert set(ordered[2:]) == {"no-ts", "garbage"}
+
+
+def test_sort_handles_z_suffix_timestamps():
+    parcels = [
+        _norm("a", planned_from="2026-06-15T10:00:00Z"),
+        _norm("b", planned_from="2026-06-13T10:00:00Z"),
+    ]
+    ordered = [p["barcode"] for p in sort_parcels_by_ts(parcels, "planned_from")]
+    assert ordered == ["b", "a"]
+
+
+def test_sort_empty_input_returns_empty_list():
+    assert sort_parcels_by_ts([], "planned_from") == []
