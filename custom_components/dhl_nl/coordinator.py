@@ -112,6 +112,7 @@ def _tracking_url(parcel: dict) -> str | None:
 def normalize_parcel(parcel: dict) -> dict:
     """Return a carrier-agnostic parcel dict with the original DHL payload under ``raw``."""
     sender = parcel.get("sender") or {}
+    receiver = parcel.get("receiver") or {}
     destination = parcel.get("destination") or {}
     delivered = parcel.get("category") == "DELIVERED"
     moment_from, moment_to = _delivery_window(parcel)
@@ -121,6 +122,7 @@ def normalize_parcel(parcel: dict) -> dict:
         "carrier": "DHL",
         "barcode": parcel.get("barcode"),
         "sender": sender.get("name"),
+        "receiver": receiver.get("name"),
         "status": map_parcel_status(parcel),
         "raw_status": parcel.get("status"),
         "delivered": delivered,

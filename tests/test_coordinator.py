@@ -224,6 +224,7 @@ def test_normalize_active_with_moment_indication():
         "category": "IN_DELIVERY",
         "status": "IN_DELIVERY",
         "sender": {"name": "Test Sender"},
+        "receiver": {"name": "J. Doe"},
         "destination": {"locationType": "ADDRESS", "name": "Home"},
         "receivingTimeIndication": {
             "indicationType": "MomentIndication",
@@ -234,6 +235,7 @@ def test_normalize_active_with_moment_indication():
     assert result["carrier"] == "DHL"
     assert result["barcode"] == "ABC"
     assert result["sender"] == "Test Sender"
+    assert result["receiver"] == "J. Doe"
     assert result["delivered"] is False
     assert result["delivered_at"] is None
     assert result["planned_from"] == "2026-06-15T14:00:00+02:00"
@@ -292,6 +294,7 @@ def test_normalize_handles_missing_fields():
     assert result["carrier"] == "DHL"
     assert result["barcode"] is None
     assert result["sender"] is None
+    assert result["receiver"] is None
     assert result["pickup"] is False
     assert result["pickup_point"] is None
     assert result["url"] is None
