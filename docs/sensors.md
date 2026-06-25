@@ -9,10 +9,11 @@ Full reference for all sensors provided by the DHL NL integration.
 
 > **Parcel shape:** every parcel exposed on a sensor attribute carries
 > the carrier-agnostic top-level keys `carrier`, `barcode`, `sender`,
-> `status` (the normalised [`ParcelStatus`](#parcel-status-reference)
-> value), `raw_status` (the original DHL string), `delivered`,
-> `delivered_at`, `planned_from`, `planned_to`, `pickup`, `pickup_point`,
-> `url`, plus the original DHL payload under `raw`.
+> `receiver`, `status` (the normalised
+> [`ParcelStatus`](#parcel-status-reference) value), `raw_status` (the
+> original DHL string), `delivered`, `delivered_at`, `planned_from`,
+> `planned_to`, `pickup`, `pickup_point`, `url`, plus the original DHL
+> payload under `raw`.
 
 ## Incoming parcels
 
@@ -49,6 +50,7 @@ no parcels have a known delivery time.
 |-----------|-------------|
 | `barcode` | Barcode of the parcel arriving soonest |
 | `sender` | Name of the sender of that parcel |
+| `receiver` | Recipient name of that parcel (from DHL's `receiver.name` field) |
 
 ### `DHL (account) En route to ServicePoint`
 
