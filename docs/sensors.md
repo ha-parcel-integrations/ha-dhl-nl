@@ -13,8 +13,9 @@ Full reference for all sensors provided by the DHL NL integration.
 > [`ParcelStatus`](#parcel-status-reference) value), `raw_status` (the
 > original DHL string), `delivered`, `delivered_at`, `planned_from`,
 > `planned_to`, `pickup`, `pickup_point`, `url`, `weight` (kg, always
-> `null` for DHL — not exposed by the API), `dimensions` (`{height,
-> width, length}` in cm, always `null` for DHL), plus the original
+> `null` for DHL — not exposed by the API), `dimensions`
+> (`{length, width, height, text}` in cm with `text` a pre-formatted
+> `"L x W x H cm"` string, always `null` for DHL), plus the original
 > DHL payload under `raw`.
 
 ## Incoming parcels
