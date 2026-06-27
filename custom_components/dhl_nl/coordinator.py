@@ -229,6 +229,11 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
         # we can suppress events for parcels that already existed when the
         # integration started (we do not know their previous state).
         self._known_state: dict[str, ParcelStatus] | None = None
+        # barcode -> last seen (planned_from, planned_to) tuple. Mirrors
+        # ``_known_state`` for delivery-time-change detection.
+        self._known_delivery_times: (
+            dict[str, tuple[str | None, str | None]] | None
+        ) = None
 
     async def _async_update_data(self) -> list[dict]:
         try:
@@ -261,21 +266,30 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
             for p in normalized_active
             if p.get("barcode")
         }
+        self._known_delivery_times = {
+            p["barcode"]: (p.get("planned_from"), p.get("planned_to"))
+            for p in normalized_active
+            if p.get("barcode")
+        }
 
         return normalized_active
 
     def _fire_change_events(self, parcels: list[dict]) -> None:
-        """Fire events for newly-registered parcels and status transitions.
+        """Fire events for newly-registered parcels and parcel transitions.
 
         Silent on the very first refresh — we cannot reliably know which
         parcels are "new" to the user vs. "already there before HA started".
         From the second refresh onward, every parcel that was not present
-        before yields one ``dhl_nl_parcel_registered`` event, and every
-        parcel whose normalized status changed yields one
-        ``dhl_nl_parcel_status_changed`` event.
+        before yields one ``dhl_nl_parcel_registered`` event, every parcel
+        whose normalized status changed yields one
+        ``dhl_nl_parcel_status_changed`` event, and every parcel whose
+        ``planned_from`` or ``planned_to`` changed to a non-null value
+        yields one ``dhl_nl_parcel_delivery_time_changed`` event.
         """
         if self._known_state is None:
             return
+
+        known_times = self._known_delivery_times or {}
 
         for parcel in parcels:
             barcode = parcel.get("barcode")
@@ -287,13 +301,37 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
                     f"{DOMAIN}_parcel_registered",
                     {**parcel},
                 )
-            elif self._known_state[barcode] != new_status:
+                continue
+
+            if self._known_state[barcode] != new_status:
                 self.hass.bus.async_fire(
                     f"{DOMAIN}_parcel_status_changed",
                     {
                         **parcel,
                         "old_status": self._known_state[barcode],
                         "new_status": new_status,
+                    },
+                )
+
+            old_from, old_to = known_times.get(barcode, (None, None))
+            new_from = parcel.get("planned_from")
+            new_to = parcel.get("planned_to")
+            # Fire only when at least one of the two ends up with a real
+            # (non-null) value AND that value differs from the last-known
+            # one. value -> null transitions are intentionally silent —
+            # they mean the carrier dropped the ETA, which is not what
+            # users want to be paged about.
+            from_changed = new_from is not None and new_from != old_from
+            to_changed = new_to is not None and new_to != old_to
+            if from_changed or to_changed:
+                self.hass.bus.async_fire(
+                    f"{DOMAIN}_parcel_delivery_time_changed",
+                    {
+                        **parcel,
+                        "old_planned_from": old_from,
+                        "new_planned_from": new_from,
+                        "old_planned_to": old_to,
+                        "new_planned_to": new_to,
                     },
                 )
 

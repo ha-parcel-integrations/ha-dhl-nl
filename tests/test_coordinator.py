@@ -463,6 +463,100 @@ async def test_status_changed_event_when_active_status_transitions(hass):
 
 
 # ---------------------------------------------------------------------------
+# Event firing — parcel_delivery_time_changed
+# ---------------------------------------------------------------------------
+
+
+async def test_delivery_time_changed_fires_when_planned_time_appears(hass):
+    """A barcode that gains a planned_from value fires delivery_time_changed."""
+    client = MagicMock()
+    client.async_get_parcels = AsyncMock(side_effect=[
+        [_parcel("IN_DELIVERY", barcode="A")],
+        [_parcel("IN_DELIVERY", barcode="A", moment="2026-06-27T10:00:00+02:00")],
+    ])
+
+    changed: list = []
+    hass.bus.async_listen(
+        "dhl_nl_parcel_delivery_time_changed", lambda e: changed.append(e.data)
+    )
+
+    coordinator = DhlCoordinator(hass, client, _mock_entry())
+    await coordinator._async_update_data()
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert len(changed) == 1
+    assert changed[0]["barcode"] == "A"
+    assert changed[0]["old_planned_from"] is None
+    assert changed[0]["new_planned_from"] == "2026-06-27T10:00:00+02:00"
+
+
+async def test_delivery_time_changed_fires_when_planned_time_shifts(hass):
+    """A barcode whose planned_from changes to a new value fires the event."""
+    client = MagicMock()
+    client.async_get_parcels = AsyncMock(side_effect=[
+        [_parcel("IN_DELIVERY", barcode="A", moment="2026-06-27T10:00:00+02:00")],
+        [_parcel("IN_DELIVERY", barcode="A", moment="2026-06-27T14:00:00+02:00")],
+    ])
+
+    changed: list = []
+    hass.bus.async_listen(
+        "dhl_nl_parcel_delivery_time_changed", lambda e: changed.append(e.data)
+    )
+
+    coordinator = DhlCoordinator(hass, client, _mock_entry())
+    await coordinator._async_update_data()
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert len(changed) == 1
+    assert changed[0]["old_planned_from"] == "2026-06-27T10:00:00+02:00"
+    assert changed[0]["new_planned_from"] == "2026-06-27T14:00:00+02:00"
+
+
+async def test_no_delivery_time_changed_event_when_planned_time_clears(hass):
+    """value → null transitions are silent (don't page users on lost ETAs)."""
+    client = MagicMock()
+    client.async_get_parcels = AsyncMock(side_effect=[
+        [_parcel("IN_DELIVERY", barcode="A", moment="2026-06-27T10:00:00+02:00")],
+        [_parcel("IN_DELIVERY", barcode="A")],
+    ])
+
+    changed: list = []
+    hass.bus.async_listen(
+        "dhl_nl_parcel_delivery_time_changed", lambda e: changed.append(e.data)
+    )
+
+    coordinator = DhlCoordinator(hass, client, _mock_entry())
+    await coordinator._async_update_data()
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert changed == []
+
+
+async def test_no_delivery_time_changed_event_when_planned_time_unchanged(hass):
+    """An unchanged planned_from does not fire the event."""
+    client = MagicMock()
+    client.async_get_parcels = AsyncMock(side_effect=[
+        [_parcel("IN_DELIVERY", barcode="A", moment="2026-06-27T10:00:00+02:00")],
+        [_parcel("IN_DELIVERY", barcode="A", moment="2026-06-27T10:00:00+02:00")],
+    ])
+
+    changed: list = []
+    hass.bus.async_listen(
+        "dhl_nl_parcel_delivery_time_changed", lambda e: changed.append(e.data)
+    )
+
+    coordinator = DhlCoordinator(hass, client, _mock_entry())
+    await coordinator._async_update_data()
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert changed == []
+
+
+# ---------------------------------------------------------------------------
 # _refresh_interval
 # ---------------------------------------------------------------------------
 

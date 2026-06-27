@@ -68,10 +68,15 @@ re-propose these as improvements:
   (with one-shot info log) for anything not yet in the map. The original
   DHL status string lives on the parcel's `raw_status` field; do not
   re-introduce it on `status`.
-- **Events**: the coordinator fires `dhl_nl_parcel_registered` and
-  `dhl_nl_parcel_status_changed` on the HA event bus. Events are
-  suppressed on the very first refresh so we do not flood users with
-  "registered" events for parcels that already existed.
+- **Events**: the coordinator fires `dhl_nl_parcel_registered`,
+  `dhl_nl_parcel_status_changed` and `dhl_nl_parcel_delivery_time_changed`
+  on the HA event bus. Events are suppressed on the very first refresh
+  so we do not flood users with "registered" events for parcels that
+  already existed. ``delivery_time_changed`` only fires when at least
+  one of ``planned_from`` / ``planned_to`` ends up with a non-null
+  value that differs from the previous one — ``value → null`` drops
+  the ETA and is intentionally silent (carrier just lost the window;
+  not worth a notification).
 - **`has_entity_name = True`** on every entity, with `translation_key`
   routing names through `strings.json` and the language files. Drop
   `_attr_name` is the rule — translations are the source of truth.
