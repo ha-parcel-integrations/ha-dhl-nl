@@ -146,15 +146,21 @@ event-driven automations.
 
 ## Options
 
-After setup, click **Configure** on the integration card to change the
-delivered-parcels filter:
+After setup, click **Configure** on the integration card. The form is
+split into two sections:
+
+### Delivered parcels
 
 | Option | Description |
 |--------|-------------|
 | **Filter by** | `Days` — show parcels delivered in the last N days. `Number of parcels` — show the N most recent deliveries. |
 | **Amount** | The number of days or parcels (1–365). Default: **7 days**. |
 
-Changes take effect on the next data refresh without requiring a reload.
+### Polling
+
+| Option | Description |
+|--------|-------------|
+| **Refresh every** | How often the integration checks DHL. Choices: **15 / 30 / 60 / 120 / 240 minutes** — default 30. A slower interval is gentler on DHL's consumer API. Changes take effect immediately, no HA restart needed. |
 
 ---
 
@@ -181,8 +187,10 @@ instead).
 
 ## Poll interval
 
-Data is refreshed every **15 minutes**. You can trigger a manual refresh
-from the integration's device page using the **Reload** option.
+Default cadence is **30 minutes**, configurable via the **Polling**
+section of the integration's Options (see above). You can also trigger
+a manual refresh from the integration's device page using the **Reload**
+option.
 
 ---
 
