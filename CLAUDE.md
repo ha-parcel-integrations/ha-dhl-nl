@@ -100,7 +100,11 @@ re-propose these as improvements:
 - **Configurable refresh interval** via the options flow
   (`CONF_REFRESH_INTERVAL`; 15, 30, 60, 120 or 240 minutes; default 30).
   The form is split into `delivered` and `polling` sections via
-  `data_entry_flow.section`.
+  `data_entry_flow.section`. **Deliberate divergence** from the
+  `ha-integration-knowledge` skill rule "polling intervals are NOT
+  user-configurable": that rule targets HA Core integrations; this is a
+  HACS integration where a user-tunable poll cadence is a wanted feature.
+  Do not "fix" this to match the core rule.
 - **No `entry.add_update_listener`** — the OptionsFlow calls
   `self.hass.config_entries.async_schedule_reload(entry.entry_id)` on
   submit so a changed refresh interval takes effect immediately. Reauth
