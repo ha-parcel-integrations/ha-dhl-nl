@@ -126,16 +126,6 @@ Every parcel exposed on a sensor attribute uses a carrier-agnostic shape:
 | `dimensions` | dict \| null | Parcel dimensions in centimeters. Always `null` for DHL — same reason as `weight`. |
 | `raw` | dict | The original DHL API payload |
 
-This is the same shape that PostNL and DPD use, so the
-[parcel aggregator](https://github.com/peternijssen/ha-parcel-aggregator)
-and any cross-carrier dashboard can read parcels from all three
-integrations the same way.
-
-For full attribute reference, active status categories, and example
-automations see [docs/sensors.md](docs/sensors.md) — or the
-[examples folder](examples/) for ready-to-paste automation and
-dashboard snippets.
-
 ## Parcel status reference
 
 `status` on every parcel is one of the canonical `ParcelStatus` values
@@ -152,10 +142,6 @@ the raw value stays available on `raw_status` for power users.
 | `returning` | Failed delivery, on the way back to the sender | (not yet observed; will be added once the raw indicator is confirmed) |
 | `problem` | Carrier reports an exception, intervention, or other issue with the parcel | category `INTERVENTION`, `EXCEPTION`, or `PROBLEM` |
 | `unknown` | Raw status/category we have not mapped yet | anything else — logged once at info level so it can be added to the map |
-
-This mapping is shared across the carriers: PostNL and DPD use the same
-`ParcelStatus` values with their own raw-status mappings, so a single
-event-driven automation can act on `status` regardless of carrier.
 
 ## Events
 
@@ -180,15 +166,10 @@ Ready-to-paste automations and dashboard cards live in [`examples/`](examples/).
 
 ### Community Lovelace cards
 
-If you want a richer UI than the snippets above, third-party cards work
-nicely with this integration's sensors:
+Third-party cards that work with this integration's sensors:
 
-- [jonisnet/hki-parcels-card](https://github.com/jonisnet/hki-parcels-card) — multi-carrier (PostNL, DHL, DPD) Home Kit-style card with Onderweg/Bezorgd/Verzonden/Post tabs.
-- [klaptafel/ha-package-tracker-card](https://github.com/klaptafel/ha-package-tracker-card) — purpose-built card for parcel integrations; renders each parcel with sender, status and tracking link.
-- [jimz011/hki-elements](https://github.com/jimz011/hki-elements) — original PostNL Home Kit-style card that hki-parcels-card was forked from.
-
-All maintained by their respective authors — please raise UI issues
-in those repos.
+- [jonisnet/hki-parcels-card](https://github.com/jonisnet/hki-parcels-card)
+- [klaptafel/ha-package-tracker-card](https://github.com/klaptafel/ha-package-tracker-card)
 
 ## Debugging
 
@@ -218,9 +199,11 @@ To capture verbose information about the DHL API responses (useful when reportin
 
 Tracking parcels from other Dutch carriers:
 
-- [ha-postnl](https://github.com/arjenbos/ha-postnl) — PostNL parcel tracker
-- [ha-dpd](https://github.com/peternijssen/ha-dpd) — DPD parcel tracker
-- [ha-parcel-aggregator](https://github.com/peternijssen/ha-parcel-aggregator) — rolls up counts and next-delivery timestamps from all installed carrier integrations into a single set of sensors
+| Integration | Description |
+|---|---|
+| [ha-postnl](https://github.com/peternijssen/ha-postnl) | PostNL parcel tracker — maintained version. The [arjenbos/ha-postnl](https://github.com/arjenbos/ha-postnl) original is the legacy version. |
+| [ha-dpd](https://github.com/peternijssen/ha-dpd) | DPD parcel tracker. |
+| [ha-parcel-aggregator](https://github.com/peternijssen/ha-parcel-aggregator) | Rolls up counts and next-delivery timestamps from all installed carrier integrations into a single set of sensors. |
 
 ## Disclaimer
 
