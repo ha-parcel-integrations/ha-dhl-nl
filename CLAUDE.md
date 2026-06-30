@@ -190,6 +190,18 @@ re-propose these as improvements:
   guard it deletes the refresh button (`{user_id}_refresh`) on every
   setup, mistaking it for a delivered parcel. Do not drop the domain
   check.
+- **Deliveries `calendar`** (`Platform.CALENDAR` in `PLATFORMS`,
+  `calendar.py`). One `DhlDeliveriesCalendar` per account, unique_id
+  `{user_id}_deliveries`, `translation_key="deliveries"`. Read-only view
+  over `coordinator.data` — **no extra API calls**, so it is enabled by
+  default (no options toggle; that is reserved for things with a real
+  cost like history). One `CalendarEvent` per active incoming parcel that
+  has a `planned_from`; `end` is `planned_to` or `planned_from + 1h` when
+  only a moment is known. `event` returns the soonest event whose `end >
+  dt_util.now()`. Summary = sender (falls back to barcode); pickup
+  parcels set `location` to the ServicePoint name. A combined cross-carrier
+  calendar belongs in the **aggregator**, not here (carrier repos stay
+  independent).
 
 ## Planned for the next major bump
 

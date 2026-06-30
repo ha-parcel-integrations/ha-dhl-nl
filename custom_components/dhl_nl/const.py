@@ -23,7 +23,7 @@ class ParcelStatus(StrEnum):
     PROBLEM = "problem"                     # Carrier reports an exception, intervention, or other issue
     UNKNOWN = "unknown"                     # Raw status we have not mapped yet — logged at info level
 
-PLATFORMS = [Platform.BUTTON, Platform.SENSOR]
+PLATFORMS = [Platform.BUTTON, Platform.CALENDAR, Platform.SENSOR]
 
 LOGIN_URL = "https://my.dhlecommerce.nl/api/user/login"
 PARCELS_URL = "https://my.dhlecommerce.nl/receiver-parcel-api/parcels"

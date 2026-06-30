@@ -96,6 +96,11 @@
         "name": "Refresh"
       }
     },
+    "calendar": {
+      "deliveries": {
+        "name": "Deliveries"
+      }
+    },
     "sensor": {
       "incoming_parcels": {
         "name": "Incoming parcels",
