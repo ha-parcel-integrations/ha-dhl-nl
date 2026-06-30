@@ -83,7 +83,19 @@
       }
     }
   },
+  "device_automation": {
+    "trigger_type": {
+      "parcel_registered": "A parcel was registered",
+      "parcel_status_changed": "A parcel's status changed",
+      "parcel_delivery_time_changed": "A parcel's expected delivery time changed"
+    }
+  },
   "entity": {
+    "button": {
+      "refresh": {
+        "name": "Refresh"
+      }
+    },
     "sensor": {
       "incoming_parcels": {
         "name": "Incoming parcels",

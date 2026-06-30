@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import DhlApiClient, DhlApiError, DhlAuthError
@@ -360,6 +361,29 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
         # status changes (history only grows on a status change). The cache
         # lives for the integration's lifetime (resets on HA restart).
         self._history_cache: dict[str, dict] = {}
+        # Cached device id for this account, attached to every fired event so
+        # device-trigger automations can filter to a specific DHL account.
+        # ``None`` until the device exists (i.e. the sensors are set up).
+        self._cached_device_id: str | None = None
+
+    def _device_id(self) -> str | None:
+        """Resolve (and cache) this account's device id for event payloads.
+
+        Looked up from the device registry by config entry. Stays ``None``
+        until the device has been registered (the sensors create it on first
+        setup), which is harmless because events are suppressed on the very
+        first refresh anyway.
+        """
+        if self._cached_device_id is not None:
+            return self._cached_device_id
+        registry = dr.async_get(self.hass)
+        device = next(
+            iter(dr.async_entries_for_config_entry(registry, self.config_entry.entry_id)),
+            None,
+        )
+        if device is not None:
+            self._cached_device_id = device.id
+        return self._cached_device_id
 
     @property
     def _include_history(self) -> bool:
@@ -435,6 +459,7 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
             return
 
         known_times = self._known_delivery_times or {}
+        device_id = self._device_id()
 
         for parcel in parcels:
             barcode = parcel.get("barcode")
@@ -444,7 +469,7 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
             if barcode not in self._known_state:
                 self.hass.bus.async_fire(
                     f"{DOMAIN}_parcel_registered",
-                    {**parcel},
+                    {**parcel, "device_id": device_id},
                 )
                 continue
 
@@ -453,6 +478,7 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
                     f"{DOMAIN}_parcel_status_changed",
                     {
                         **parcel,
+                        "device_id": device_id,
                         "old_status": self._known_state[barcode],
                         "new_status": new_status,
                     },
@@ -473,6 +499,7 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
                     f"{DOMAIN}_parcel_delivery_time_changed",
                     {
                         **parcel,
+                        "device_id": device_id,
                         "old_planned_from": old_from,
                         "new_planned_from": new_from,
                         "old_planned_to": old_to,

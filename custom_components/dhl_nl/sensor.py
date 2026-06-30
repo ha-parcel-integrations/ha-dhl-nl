@@ -61,8 +61,11 @@ async def async_setup_entry(
         f"{user_id}_delivered_parcels",
     }
     for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+        # Only per-parcel *sensors* are managed here; skip other platforms
+        # (e.g. the refresh button) whose unique_id also starts with user_id_.
         if (
-            entity_entry.unique_id.startswith(f"{user_id}_")
+            entity_entry.domain == "sensor"
+            and entity_entry.unique_id.startswith(f"{user_id}_")
             and entity_entry.unique_id not in non_parcel_unique_ids
         ):
             barcode = entity_entry.unique_id[len(f"{user_id}_"):]
