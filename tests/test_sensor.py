@@ -268,3 +268,29 @@ def test_delivered_sensor_attributes_handle_missing_sender():
     sensor = DhlDeliveredParcelsSensor(_make_coordinator([], [parcel]), USER_INFO)
     attrs = sensor.extra_state_attributes
     assert attrs["parcels"][0]["sender"] is None
+
+
+# ---------------------------------------------------------------------------
+# DhlLastUpdateSensor
+# ---------------------------------------------------------------------------
+
+
+def test_last_update_sensor_reports_coordinator_timestamp():
+    from datetime import datetime, timezone
+
+    from custom_components.dhl_nl.sensor import DhlLastUpdateSensor
+
+    coordinator = _make_coordinator([])
+    moment = datetime(2026, 6, 30, 12, 0, tzinfo=timezone.utc)
+    coordinator.last_success_time = moment
+    sensor = DhlLastUpdateSensor(coordinator, USER_INFO)
+    assert sensor.native_value == moment
+
+
+def test_last_update_sensor_none_before_first_success():
+    from custom_components.dhl_nl.sensor import DhlLastUpdateSensor
+
+    coordinator = _make_coordinator([])
+    coordinator.last_success_time = None
+    sensor = DhlLastUpdateSensor(coordinator, USER_INFO)
+    assert sensor.native_value is None

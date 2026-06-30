@@ -125,6 +125,9 @@
         "name": "Delivered parcels",
         "unit_of_measurement": "parcels"
       },
+      "last_update": {
+        "name": "Last successful update"
+      },
       "parcel": {
         "name": "Parcel {barcode}"
       }

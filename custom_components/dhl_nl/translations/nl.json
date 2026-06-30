@@ -125,6 +125,9 @@
         "name": "Bezorgde pakketten",
         "unit_of_measurement": "pakketten"
       },
+      "last_update": {
+        "name": "Laatste succesvolle update"
+      },
       "parcel": {
         "name": "Pakket {barcode}"
       }

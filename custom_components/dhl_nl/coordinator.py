@@ -365,6 +365,10 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
         # device-trigger automations can filter to a specific DHL account.
         # ``None`` until the device exists (i.e. the sensors are set up).
         self._cached_device_id: str | None = None
+        # Timestamp of the last successful poll, surfaced by a diagnostic
+        # sensor so users can alert on a silently-stale integration (the
+        # count sensors only change when a value changes, not every poll).
+        self.last_success_time: datetime | None = None
 
     def _device_id(self) -> str | None:
         """Resolve (and cache) this account's device id for event payloads.
@@ -441,6 +445,7 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
             if p.get("barcode")
         }
 
+        self.last_success_time = datetime.now(timezone.utc)
         return normalized_active
 
     def _fire_change_events(self, parcels: list[dict]) -> None:

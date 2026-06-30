@@ -190,6 +190,15 @@ re-propose these as improvements:
   guard it deletes the refresh button (`{user_id}_refresh`) on every
   setup, mistaking it for a delivered parcel. Do not drop the domain
   check.
+- **Diagnostic `last_update` sensor** (`DhlLastUpdateSensor`, unique_id
+  `{user_id}_last_update`, `EntityCategory.DIAGNOSTIC`, device class
+  TIMESTAMP). Reads `coordinator.last_success_time`, which the incoming
+  `DhlCoordinator` stamps with `datetime.now(timezone.utc)` at the end of
+  every successful `_async_update_data`. Lets users alert on a silently
+  stale integration (the count sensors only change on a value change).
+  **Must be in `non_parcel_unique_ids`** in `sensor.py` — it is a sensor
+  whose unique_id starts with `{user_id}_`, so without the exclusion the
+  setup cleanup loop deletes it as a stale parcel.
 - **Deliveries `calendar`** (`Platform.CALENDAR` in `PLATFORMS`,
   `calendar.py`). One `DhlDeliveriesCalendar` per account, unique_id
   `{user_id}_deliveries`, `translation_key="deliveries"`. Read-only view

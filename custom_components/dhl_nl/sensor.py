@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import DeviceInfo
@@ -59,6 +60,7 @@ async def async_setup_entry(
         f"{user_id}_en_route_to_service_point",
         f"{user_id}_outgoing_parcels",
         f"{user_id}_delivered_parcels",
+        f"{user_id}_last_update",
     }
     for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
         # Only per-parcel *sensors* are managed here; skip other platforms
@@ -97,6 +99,7 @@ async def async_setup_entry(
     entities.append(DhlEnRouteToServicePointSensor(coordinator=coordinator, user_info=user_info))
     entities.append(DhlPickupPendingSensor(coordinator=coordinator, user_info=user_info))
     entities.append(DhlDeliveredParcelsSensor(coordinator=coordinator, user_info=user_info))
+    entities.append(DhlLastUpdateSensor(coordinator=coordinator, user_info=user_info))
 
     # Outgoing shipments — single summary sensor.
     entities.append(
@@ -484,3 +487,34 @@ class DhlDeliveredParcelsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity)
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         return {"parcels": self.coordinator.delivered}
+
+
+class DhlLastUpdateSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
+    """Diagnostic sensor reporting when DHL was last polled successfully.
+
+    Updates on every successful coordinator refresh, even when no parcel
+    value changes — so users can alert on a silently-stale integration
+    (e.g. expired auth) that the count sensors would not reveal.
+    """
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "last_update"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_attribution = "Data provided by DHL"
+
+    def __init__(
+        self,
+        coordinator: DhlCoordinator,
+        user_info: dict[str, Any],
+    ) -> None:
+        super().__init__(coordinator)
+        self._user_info = user_info
+        user_id: str = user_info.get("userId", "")
+        self._attr_unique_id = f"{user_id}_last_update"
+        self._attr_device_info = _build_device_info(user_info)
+
+    @property
+    def native_value(self) -> datetime | None:
+        """Return the timestamp of the last successful poll."""
+        return self.coordinator.last_success_time

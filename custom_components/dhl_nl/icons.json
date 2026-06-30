@@ -29,6 +29,9 @@
       "delivered_parcels": {
         "default": "mdi:package-variant"
       },
+      "last_update": {
+        "default": "mdi:clock-check-outline"
+      },
       "parcel": {
         "default": "mdi:package-variant-closed"
       }
