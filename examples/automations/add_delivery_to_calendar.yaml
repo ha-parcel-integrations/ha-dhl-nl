@@ -1,0 +1,43 @@
+# Add an expected DHL delivery to a calendar of your choice.
+#
+# The integration already ships a read-only "Deliveries" calendar entity
+# that needs no maintenance — use that if you just want to SEE deliveries in
+# Home Assistant. This automation is for the other case: writing the delivery
+# into your OWN calendar (Google, CalDAV, or HA's Local Calendar) so it also
+# shows on your phone.
+#
+# Pick a writable calendar below (replace `calendar.your_calendar`).
+#
+# Caveat: `calendar.create_event` always creates a NEW event, so if DHL
+# shifts the ETA you'll get a second entry — delete the old one by hand, or
+# just rely on the built-in Deliveries calendar instead.
+
+alias: "DHL: add delivery to my calendar"
+description: Write each expected DHL delivery window into a calendar you choose.
+mode: queued
+max: 10
+
+triggers:
+  - trigger: event
+    event_type: dhl_nl_parcel_delivery_time_changed
+
+conditions:
+  # Only act when there is a real start moment to put on the calendar.
+  - condition: template
+    value_template: "{{ trigger.event.data.new_planned_from is not none }}"
+
+actions:
+  - action: calendar.create_event
+    target:
+      entity_id: calendar.your_calendar
+    data:
+      summary: >-
+        DHL: {{ trigger.event.data.sender or trigger.event.data.barcode }}
+      description: >-
+        Status: {{ trigger.event.data.status }}
+        {{ trigger.event.data.url }}
+      start_date_time: "{{ trigger.event.data.new_planned_from }}"
+      end_date_time: >-
+        {{ trigger.event.data.new_planned_to
+           if trigger.event.data.new_planned_to
+           else (as_datetime(trigger.event.data.new_planned_from) + timedelta(hours=1)).isoformat() }}
