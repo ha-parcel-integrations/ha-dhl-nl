@@ -15,6 +15,8 @@ TO_REDACT = {
     "email",
     "userId",
     "barcode",
+    "name",
+    "receiver",
     "postalCode",
     "street",
     "houseNumber",
