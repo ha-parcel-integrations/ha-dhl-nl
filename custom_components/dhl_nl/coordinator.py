@@ -559,7 +559,10 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
 
         if filter_type == "days":
             cutoff = datetime.now(timezone.utc) - timedelta(days=filter_amount)
-            return [p for p in parcels if self._delivery_dt(p) is None or self._delivery_dt(p) >= cutoff]
+            return [
+                p for p in parcels
+                if (dt := self._delivery_dt(p)) is None or dt >= cutoff
+            ]
 
         # "parcels" — return the most recent N
         return parcels[:filter_amount]
