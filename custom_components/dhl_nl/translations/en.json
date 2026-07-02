@@ -77,6 +77,15 @@
     }
   },
   "selector": {
+    "refresh_interval": {
+      "options": {
+        "15": "15 minutes",
+        "30": "30 minutes",
+        "60": "60 minutes",
+        "120": "120 minutes",
+        "240": "240 minutes"
+      }
+    },
     "delivered_filter_type": {
       "options": {
         "days": "Days",

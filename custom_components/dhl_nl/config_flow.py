@@ -270,10 +270,8 @@ class DhlOptionsFlowHandler(OptionsFlow):
                                     )),
                                 ): selector.SelectSelector(
                                     selector.SelectSelectorConfig(
-                                        options=[
-                                            selector.SelectOptionDict(value=str(m), label=f"{m} minutes")
-                                            for m in REFRESH_INTERVAL_OPTIONS
-                                        ],
+                                        options=[str(m) for m in REFRESH_INTERVAL_OPTIONS],
+                                        translation_key=CONF_REFRESH_INTERVAL,
                                         mode=selector.SelectSelectorMode.DROPDOWN,
                                     )
                                 ),
