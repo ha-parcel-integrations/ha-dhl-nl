@@ -1,5 +1,10 @@
 # DHL NL Parcel Tracker
 
+[![Release](https://img.shields.io/github/v/release/peternijssen/ha-dhl-nl.svg)](https://github.com/peternijssen/ha-dhl-nl/releases)
+[![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Downloads](https://img.shields.io/github/downloads/peternijssen/ha-dhl-nl/total.svg)](https://github.com/peternijssen/ha-dhl-nl/releases)
+
 A custom Home Assistant integration that tracks your incoming and outgoing DHL eCommerce NL shipments.
 
 ## Contents
