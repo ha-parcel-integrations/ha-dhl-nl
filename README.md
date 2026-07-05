@@ -3,6 +3,9 @@
 [![Release](https://img.shields.io/github/v/release/peternijssen/ha-dhl-nl.svg)](https://github.com/peternijssen/ha-dhl-nl/releases)
 [![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+> 💬 Questions or feedback? Join the discussion on the [Home Assistant community](https://community.home-assistant.io/t/packages-postnl-dhl-nl-dpd-and-gls-parcel-integration/112433/).
+
 A custom Home Assistant integration that tracks your incoming and outgoing DHL eCommerce NL shipments.
 
 ## Contents
