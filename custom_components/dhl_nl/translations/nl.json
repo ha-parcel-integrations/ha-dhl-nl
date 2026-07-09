@@ -136,7 +136,7 @@
         "unit_of_measurement": "pakketten"
       },
       "outgoing_delivered_parcels": {
-        "name": "Bezorgde uitgaande pakketten",
+        "name": "Uitgaande bezorgde pakketten",
         "unit_of_measurement": "pakketten"
       },
       "last_update": {

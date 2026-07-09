@@ -1,6 +1,6 @@
 """Tests for DHL sensor property logic."""
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -364,6 +364,22 @@ def test_outgoing_delivered_sensor_attributes_include_delivered_flag():
     attrs = sensor.extra_state_attributes
     assert attrs["parcels"][0]["barcode"] == "RET2"
     assert attrs["parcels"][0]["delivered"] is True
+
+
+@pytest.mark.parametrize("sensor_cls", [DhlSentShipmentsSensor, DhlOutgoingDeliveredSensor])
+async def test_outgoing_sensor_also_subscribes_to_sent_coordinator(sensor_cls):
+    """Each outgoing sensor reads from both coordinators, so it must also
+    listen to the sent-shipments coordinator, not just the main one."""
+    sent_coordinator = _make_sent_coordinator()
+    sensor = sensor_cls(_make_coordinator([]), sent_coordinator, USER_INFO)
+    sensor.async_on_remove = MagicMock()
+    with patch(
+        "custom_components.dhl_nl.sensor.CoordinatorEntity.async_added_to_hass",
+        AsyncMock(),
+    ):
+        await sensor.async_added_to_hass()
+    sent_coordinator.async_add_listener.assert_called_once_with(sensor.async_write_ha_state)
+    sensor.async_on_remove.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

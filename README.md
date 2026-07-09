@@ -115,8 +115,9 @@ their entity_ids carry the same account suffix:
 | `DHL (account) Next delivery` | Earliest expected delivery datetime |
 | `DHL (account) En route to ServicePoint` | Parcels in transit to a ServicePoint |
 | `DHL (account) Awaiting pickup` | Parcels ready for collection at a ServicePoint |
-| `DHL (account) Delivered parcels` | Recently delivered parcels (configurable window) |
-| `DHL (account) Outgoing parcels` | Number of active outgoing parcels |
+| `DHL (account) Delivered parcels` | Recently delivered incoming parcels (configurable window) |
+| `DHL (account) Outgoing parcels` | Number of active outgoing parcels, including return shipments on their way back to a shop |
+| `DHL (account) Outgoing delivered parcels` | Recently delivered outgoing parcels, including completed returns (same configurable window) |
 
 Every parcel exposed on a sensor attribute uses a carrier-agnostic shape:
 

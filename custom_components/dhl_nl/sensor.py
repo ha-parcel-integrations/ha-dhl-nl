@@ -295,11 +295,11 @@ class DhlSentShipmentsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
       receiver-parcel-api list as incoming parcels (``isReturn: true``).
       This is the data that actually populates this sensor in practice.
 
-    Bound to the main ``coordinator`` (not ``sent_coordinator``) purely as
-    an implementation choice — both coordinators share the same refresh
-    interval, so it does not matter which one drives update notifications.
-    No per-shipment sensors are created — all data is available on this
-    single entity.
+    Backed by ``CoordinatorEntity[DhlCoordinator]`` for the main coordinator
+    and additionally subscribes to ``sent_coordinator`` in
+    ``async_added_to_hass`` so an update from either source refreshes the
+    sensor. No per-shipment sensors are created — all data is available on
+    this single entity.
     """
 
     _attr_has_entity_name = True
@@ -321,6 +321,19 @@ class DhlSentShipmentsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
         user_id: str = user_info.get("userId", "")
         self._attr_unique_id = f"{user_id}_outgoing_parcels"
         self._attr_device_info = _build_device_info(user_info)
+
+    async def async_added_to_hass(self) -> None:
+        """Subscribe to the sent-shipments coordinator as well.
+
+        This entity reads from both coordinators, but ``CoordinatorEntity``
+        only subscribes to the one passed to ``super().__init__``. Without
+        this, updates that only touch the sent-shipments coordinator would
+        not refresh the sensor until the main coordinator happened to poll.
+        """
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self._sent_coordinator.async_add_listener(self.async_write_ha_state)
+        )
 
     # ------------------------------------------------------------------
     # SensorEntity interface
@@ -371,6 +384,14 @@ class DhlOutgoingDeliveredSensor(CoordinatorEntity[DhlCoordinator], SensorEntity
         user_id: str = user_info.get("userId", "")
         self._attr_unique_id = f"{user_id}_outgoing_delivered_parcels"
         self._attr_device_info = _build_device_info(user_info)
+
+    async def async_added_to_hass(self) -> None:
+        """Subscribe to the sent-shipments coordinator as well (see
+        :meth:`DhlSentShipmentsSensor.async_added_to_hass`)."""
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self._sent_coordinator.async_add_listener(self.async_write_ha_state)
+        )
 
     def _parcels(self) -> list[dict]:
         """Return delivered own-sender shipments and returns, merged and sorted."""

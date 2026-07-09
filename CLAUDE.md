@@ -249,9 +249,12 @@ re-propose these as improvements:
 - **`DhlSentShipmentsSensor` (`{user_id}_outgoing_parcels`) now merges two
   sources**: `sent_coordinator.data` (own-sender shipments — almost always
   empty, see above) and `coordinator.returning`, combined and re-sorted
-  with `sort_parcels_by_ts`. Bound to `DhlCoordinator` for update
-  notifications (an arbitrary choice — both coordinators share the same
-  refresh interval).
+  with `sort_parcels_by_ts`. It is a `CoordinatorEntity[DhlCoordinator]`
+  but **also subscribes to `sent_coordinator`** in `async_added_to_hass`
+  (`async_on_remove(sent_coordinator.async_add_listener(...))`) so an
+  update from either coordinator refreshes the sensor — do not drop this,
+  reading a second coordinator's data without subscribing would leave the
+  sensor stale until the main coordinator next polls.
 - **New `DhlOutgoingDeliveredSensor` (`{user_id}_outgoing_delivered_parcels`)**
   merges `sent_coordinator.delivered` with `coordinator.delivered_outgoing`
   the same way. `DhlSentShipmentsCoordinator` gained a `delivered`

@@ -136,7 +136,7 @@
         "unit_of_measurement": "parcels"
       },
       "outgoing_delivered_parcels": {
-        "name": "Delivered outgoing parcels",
+        "name": "Outgoing delivered parcels",
         "unit_of_measurement": "parcels"
       },
       "last_update": {
