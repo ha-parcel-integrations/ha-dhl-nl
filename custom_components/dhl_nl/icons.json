@@ -30,7 +30,7 @@
         "default": "mdi:package-variant"
       },
       "outgoing_delivered_parcels": {
-        "default": "mdi:package-check"
+        "default": "mdi:package-variant"
       },
       "last_update": {
         "default": "mdi:clock-check-outline"
