@@ -32,7 +32,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up DHL sensor entities from a config entry.
 
-    Performs the initial coordinator refreshes, then registers:
+    The coordinators are already refreshed by __init__.py; this registers:
     - A summary sensor for incoming active parcels, plus one per-parcel sensor
     - Summary sensors for active and delivered outgoing parcels. "Outgoing"
       merges two sources: the account holder's own DHL-registered sent
@@ -47,9 +47,9 @@ async def async_setup_entry(
     sent_coordinator = data.sent_coordinator
     user_info = data.user_info
 
-    # Perform the first refresh for both coordinators before adding entities.
-    await coordinator.async_config_entry_first_refresh()
-    await sent_coordinator.async_config_entry_first_refresh()
+    # Both coordinators are already populated: __init__.py performs the first
+    # refresh before forwarding to platforms, so ConfigEntryNotReady is raised
+    # from the entry setup rather than (too late) from this forwarded platform.
 
     current_barcodes: set[str] = {
         p.get("barcode", "") for p in coordinator.data or []

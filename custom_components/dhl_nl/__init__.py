@@ -67,6 +67,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: DhlConfigEntry) -> bool:
     coordinator = DhlCoordinator(hass, client, entry)
     sent_coordinator = DhlSentShipmentsCoordinator(hass, client, entry)
 
+    try:
+        # Fetch initial data here, before forwarding to platforms. Raising
+        # ConfigEntryNotReady from a forwarded platform is too late for HA to
+        # catch cleanly (it logs a warning and leaves half the platforms set
+        # up); doing the first refresh here lets a transient failure — e.g. a
+        # DHL 429 — fail the whole entry so HA retries it with backoff.
+        await coordinator.async_config_entry_first_refresh()
+        await sent_coordinator.async_config_entry_first_refresh()
+    except Exception:
+        # A failed first refresh (ConfigEntryNotReady/ConfigEntryAuthFailed)
+        # would otherwise leak the dedicated session on every retry.
+        await session.close()
+        raise
+
     entry.runtime_data = DhlData(
         client=client,
         coordinator=coordinator,
@@ -78,8 +92,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: DhlConfigEntry) -> bool:
     try:
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     except Exception:
-        # A failed platform setup (e.g. ConfigEntryNotReady from the first
-        # refresh) would otherwise leak the dedicated session on every retry.
+        # A failed platform setup would otherwise leak the dedicated session
+        # on every retry.
         await session.close()
         raise
 

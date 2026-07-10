@@ -59,9 +59,18 @@ re-propose these as improvements:
   `DhlApiError`/`ClientError → ConfigEntryNotReady` (retry with backoff).
   Do not collapse these again — a DHL outage must never push users into
   reauth.
+- **First refresh runs in `__init__.py`, before `async_forward_entry_setups`.**
+  Both coordinators call `async_config_entry_first_refresh()` in
+  `async_setup_entry` (not in the `sensor.py` platform). Raising
+  `ConfigEntryNotReady` from a *forwarded* platform is too late for HA to
+  catch — it logs a warning and half-sets-up the entry (users saw only the
+  button/calendar entities and no sensors). Doing the first refresh in
+  `__init__` makes a transient fetch failure (e.g. a DHL **429**) fail the
+  whole entry cleanly so HA retries with backoff. Do not move the first
+  refresh back into a platform.
 - The per-entry `ClientSession` is closed on every failed-setup path
-  (login failure and a failing platform forward) — without this each
-  setup retry leaks a session.
+  (login failure, a failing first refresh, and a failing platform forward)
+  — without this each setup retry leaks a session.
 - Diagnostics redact person/shop names: `name` (raw payloads) and the
   normalized top-level `receiver` are in `TO_REDACT`.
 - `aiohttp.ClientError` is intentionally not caught in the coordinator —

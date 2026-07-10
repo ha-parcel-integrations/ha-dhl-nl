@@ -109,6 +109,36 @@ async def test_setup_entry_retries_on_connection_error(hass):
 
 
 @pytest.mark.asyncio
+async def test_setup_entry_retries_when_first_refresh_fails(hass):
+    """Login succeeds but the first data fetch fails (e.g. a DHL 429).
+
+    The first refresh runs in __init__.py before platforms are forwarded, so a
+    failure raises ConfigEntryNotReady from the entry setup (SETUP_RETRY) rather
+    than — too late — from a forwarded platform, which would half-set-up the
+    entry and log a warning.
+    """
+    entry = _add_entry(hass)
+    with (
+        patch(
+            "custom_components.dhl_nl.DhlApiClient.async_login",
+            new=AsyncMock(return_value=_USER_INFO),
+        ),
+        patch(
+            "custom_components.dhl_nl.DhlApiClient.async_get_parcels",
+            new=AsyncMock(side_effect=DhlApiError(429)),
+        ),
+        patch(
+            "custom_components.dhl_nl.DhlApiClient.async_get_sent_shipments",
+            new=AsyncMock(return_value=[]),
+        ),
+    ):
+        assert not await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+
+
+@pytest.mark.asyncio
 async def test_unload_entry_closes_session(hass):
     """Unloading the entry closes the per-entry aiohttp session."""
     entry = _add_entry(hass)
