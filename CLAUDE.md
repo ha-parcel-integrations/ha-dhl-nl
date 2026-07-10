@@ -277,12 +277,35 @@ re-propose these as improvements:
   call it directly.
 - Both `outgoing_parcels` and `outgoing_delivered_parcels` **must** stay in
   `non_parcel_unique_ids` in `sensor.py` (the first already did).
-- **No history, no events for returns.** `_enrich_history` is still called
-  only with `active + delivered` (incoming); track-trace is a
-  receiver-role endpoint and returns keep `history: None`. `_fire_change_events`
-  is not called for `returning` / `delivered_outgoing` — no
-  `dhl_nl_parcel_registered` / `_status_changed` events fire for returns
-  or for sent shipments.
+- **No history for returns.** `_enrich_history` is still called only with
+  `active + delivered` (incoming); track-trace is a receiver-role endpoint
+  and returns keep `history: None`.
+
+### Adopted after 2.5.0 — outgoing events (do not refactor away)
+
+- **Two outgoing events fire from `DhlCoordinator`**:
+  `dhl_nl_outgoing_parcel_status_changed` and
+  `dhl_nl_outgoing_parcel_delivered`, via `_fire_outgoing_change_events`,
+  over the combined `returning + delivered_outgoing` set (so a hop from
+  in-transit to delivered is visible in one set). State tracked in
+  `_known_outgoing_state` (barcode → ParcelStatus), `None` on the first
+  refresh for the same suppression reason as `_known_state`.
+- **`delivered` takes precedence over `status_changed`** for the terminal
+  transition: a change **to** `ParcelStatus.DELIVERED` fires only
+  `_delivered`, every other change fires only `_status_changed`. So the
+  final hop fires exactly one (dedicated) event, never both.
+- **No outgoing `registered` and no outgoing `delivery_time_changed`** —
+  deliberately out of scope. A return seen for the first time (not yet in
+  `_known_outgoing_state`) fires nothing; it can only fire once a later
+  refresh sees it change. An already-delivered return never fires (its
+  status did not change).
+- **Source is `DhlCoordinator` (returns), not `DhlSentShipmentsCoordinator`.**
+  Own-sender shipments are ~always empty for DHL consumers (see above), so
+  the sent-shipments coordinator does not fire events — the meaningful
+  outgoing data is the returns list. Both events carry `device_id` and are
+  wired into `device_trigger.py` (`outgoing_parcel_status_changed` /
+  `outgoing_parcel_delivered`) with labels under
+  `device_automation.trigger_type` in strings/translations.
 
 ## Planned for the next major bump
 

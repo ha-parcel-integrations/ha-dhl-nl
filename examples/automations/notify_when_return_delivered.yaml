@@ -1,0 +1,22 @@
+# Notify when an outgoing parcel (a return you sent back) reaches the
+# recipient — e.g. your webshop return arrives, so you can watch for the
+# refund. Fires once per parcel on the hop to delivered.
+
+alias: "DHL: return delivered"
+description: Notify when a DHL return/outgoing parcel is delivered.
+mode: queued
+max: 10
+
+triggers:
+  - trigger: event
+    event_type: dhl_nl_outgoing_parcel_delivered
+
+actions:
+  - action: notify.mobile_app
+    data:
+      title: "Retour bezorgd"
+      message: >-
+        {{ trigger.event.data.receiver or trigger.event.data.barcode }} is
+        aangekomen.
+      data:
+        clickAction: "{{ trigger.event.data.url }}"

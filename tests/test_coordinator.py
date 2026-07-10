@@ -525,6 +525,102 @@ async def test_returning_and_delivered_outgoing_empty_without_returns(hass):
 
 
 # ---------------------------------------------------------------------------
+# Outgoing event firing — outgoing_parcel_status_changed / _delivered
+# ---------------------------------------------------------------------------
+
+
+async def test_no_outgoing_events_on_first_refresh(hass):
+    """The first refresh seeds outgoing state silently — no outgoing events."""
+    client = MagicMock()
+    client.async_get_parcels = AsyncMock(return_value=[
+        _parcel("UNDERWAY", is_return=True, barcode="R"),
+    ])
+
+    fired: list = []
+    hass.bus.async_listen("dhl_nl_outgoing_parcel_status_changed", lambda e: fired.append(e))
+    hass.bus.async_listen("dhl_nl_outgoing_parcel_delivered", lambda e: fired.append(e))
+
+    coordinator = DhlCoordinator(hass, client, _mock_entry())
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert fired == []
+
+
+async def test_outgoing_status_changed_when_return_status_transitions(hass):
+    """A return whose active status changes fires outgoing_parcel_status_changed."""
+    client = MagicMock()
+    client.async_get_parcels = AsyncMock(side_effect=[
+        [_parcel("DATA_RECEIVED", is_return=True, barcode="R")],
+        [_parcel("UNDERWAY", is_return=True, barcode="R")],
+    ])
+
+    changed: list = []
+    hass.bus.async_listen(
+        "dhl_nl_outgoing_parcel_status_changed", lambda e: changed.append(e.data)
+    )
+
+    coordinator = DhlCoordinator(hass, client, _mock_entry())
+    await coordinator._async_update_data()
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert len(changed) == 1
+    assert changed[0]["barcode"] == "R"
+    assert changed[0]["old_status"] == ParcelStatus.REGISTERED
+    assert changed[0]["new_status"] == ParcelStatus.IN_TRANSIT
+
+
+async def test_outgoing_delivered_when_return_is_delivered(hass):
+    """A return that transitions to delivered fires outgoing_parcel_delivered
+    and NOT outgoing_parcel_status_changed (delivered takes precedence)."""
+    recent = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    client = MagicMock()
+    client.async_get_parcels = AsyncMock(side_effect=[
+        [_parcel("UNDERWAY", is_return=True, barcode="R")],
+        [_parcel("DELIVERED", is_return=True, moment=recent, barcode="R")],
+    ])
+
+    delivered: list = []
+    changed: list = []
+    hass.bus.async_listen(
+        "dhl_nl_outgoing_parcel_delivered", lambda e: delivered.append(e.data)
+    )
+    hass.bus.async_listen(
+        "dhl_nl_outgoing_parcel_status_changed", lambda e: changed.append(e.data)
+    )
+
+    coordinator = DhlCoordinator(hass, client, _mock_entry("days", 7))
+    await coordinator._async_update_data()
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert len(delivered) == 1
+    assert delivered[0]["barcode"] == "R"
+    assert changed == []
+
+
+async def test_no_outgoing_event_for_already_delivered_return(hass):
+    """A return that is delivered on both refreshes never fires (no change)."""
+    recent = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    client = MagicMock()
+    client.async_get_parcels = AsyncMock(return_value=[
+        _parcel("DELIVERED", is_return=True, moment=recent, barcode="R"),
+    ])
+
+    fired: list = []
+    hass.bus.async_listen("dhl_nl_outgoing_parcel_delivered", lambda e: fired.append(e))
+    hass.bus.async_listen("dhl_nl_outgoing_parcel_status_changed", lambda e: fired.append(e))
+
+    coordinator = DhlCoordinator(hass, client, _mock_entry("days", 7))
+    await coordinator._async_update_data()
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert fired == []
+
+
+# ---------------------------------------------------------------------------
 # Event firing — parcel_registered and parcel_status_changed
 # ---------------------------------------------------------------------------
 

@@ -73,6 +73,10 @@ async def test_get_triggers_lists_all_parcel_events(hass):
     triggers = await async_get_triggers(hass, device_id)
 
     assert {t["type"] for t in triggers} == TRIGGER_TYPES
+    assert {
+        "outgoing_parcel_status_changed",
+        "outgoing_parcel_delivered",
+    } <= TRIGGER_TYPES
     assert all(t["domain"] == DOMAIN for t in triggers)
     assert all(t["device_id"] == device_id for t in triggers)
 

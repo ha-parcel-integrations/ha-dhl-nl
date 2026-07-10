@@ -438,6 +438,12 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
         self._known_delivery_times: (
             dict[str, tuple[str | None, str | None]] | None
         ) = None
+        # barcode -> last seen ParcelStatus for *outgoing* parcels (returns +
+        # sent), tracked across the active (``returning``) and delivered
+        # (``delivered_outgoing``) buckets so a status change or a
+        # transition-to-delivered fires an outgoing event. ``None`` on the
+        # first refresh for the same suppression reason as ``_known_state``.
+        self._known_outgoing_state: dict[str, ParcelStatus] | None = None
         # barcode -> {"history": [...], "_raw_status": str}. The track-trace
         # call is an extra HTTP request per parcel, so we only make it when
         # the history option is on, and only refetch when a parcel's raw
@@ -529,6 +535,11 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
 
         self._fire_change_events(normalized_active)
 
+        # Outgoing = returns (active) + delivered returns, combined so a
+        # transition from in-transit to delivered is visible in one set.
+        outgoing = self.returning + self.delivered_outgoing
+        self._fire_outgoing_change_events(outgoing)
+
         self._known_state = {
             p["barcode"]: p["status"]
             for p in normalized_active
@@ -537,6 +548,11 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
         self._known_delivery_times = {
             p["barcode"]: (p.get("planned_from"), p.get("planned_to"))
             for p in normalized_active
+            if p.get("barcode")
+        }
+        self._known_outgoing_state = {
+            p["barcode"]: p["status"]
+            for p in outgoing
             if p.get("barcode")
         }
 
@@ -604,6 +620,51 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
                         "new_planned_from": new_from,
                         "old_planned_to": old_to,
                         "new_planned_to": new_to,
+                    },
+                )
+
+    def _fire_outgoing_change_events(self, parcels: list[dict]) -> None:
+        """Fire status/delivered events for outgoing parcels (returns + sent).
+
+        Silent on the very first refresh (``_known_outgoing_state is None``),
+        matching ``_fire_change_events``. From the second refresh onward, every
+        outgoing parcel whose normalized status transitions **to**
+        ``DELIVERED`` yields one ``dhl_nl_outgoing_parcel_delivered`` event, and
+        every other status change yields one
+        ``dhl_nl_outgoing_parcel_status_changed`` event. ``delivered`` takes
+        precedence over ``status_changed`` for that final transition, so the
+        terminal hop fires exactly one (dedicated) event, not both. A parcel
+        that is already delivered the first time it is seen never fires (its
+        status did not change). There is no outgoing ``registered`` or
+        ``delivery_time_changed`` event — those are intentionally out of scope.
+        """
+        if self._known_outgoing_state is None:
+            return
+
+        device_id = self._device_id()
+
+        for parcel in parcels:
+            barcode = parcel.get("barcode")
+            if not barcode or barcode not in self._known_outgoing_state:
+                continue
+            old_status = self._known_outgoing_state[barcode]
+            new_status = parcel["status"]
+            if new_status == old_status:
+                continue
+
+            if new_status == ParcelStatus.DELIVERED:
+                self.hass.bus.async_fire(
+                    f"{DOMAIN}_outgoing_parcel_delivered",
+                    {**parcel, "device_id": device_id},
+                )
+            else:
+                self.hass.bus.async_fire(
+                    f"{DOMAIN}_outgoing_parcel_status_changed",
+                    {
+                        **parcel,
+                        "device_id": device_id,
+                        "old_status": old_status,
+                        "new_status": new_status,
                     },
                 )
 
