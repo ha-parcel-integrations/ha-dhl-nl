@@ -44,7 +44,7 @@ jobs:
           python-version: "3.13"
 
       - name: Install dependencies
-        run: pip install pytest pytest-asyncio pytest-homeassistant-custom-component
+        run: pip install -r requirements-dev.txt
 
       - name: Run tests
         run: pytest tests/ -v
