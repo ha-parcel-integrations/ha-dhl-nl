@@ -60,7 +60,7 @@ _CATEGORY_MAP: dict[str, ParcelStatus] = {
 
 # New-issue link surfaced in the unknown-status warnings so users can paste a
 # ready-made line into a bug report.
-_NEW_ISSUE_URL = "https://github.com/peternijssen/ha-dhl-nl/issues/new"
+_NEW_ISSUE_URL = "https://github.com/ha-parcel-integrations/ha-dhl-nl/issues/new"
 
 # Already-logged values so we surface each unmapped one only once per HA
 # session. Parcel-level keys on (status, category); history keys on

@@ -1,6 +1,6 @@
 # DHL NL Parcel Tracker
 
-[![Release](https://img.shields.io/github/v/release/peternijssen/ha-dhl-nl.svg)](https://github.com/peternijssen/ha-dhl-nl/releases)
+[![Release](https://img.shields.io/github/v/release/ha-parcel-integrations/ha-dhl-nl.svg)](https://github.com/ha-parcel-integrations/ha-dhl-nl/releases)
 [![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -226,10 +226,10 @@ Tracking parcels from other Dutch carriers:
 
 | Integration | Description |
 |---|---|
-| [ha-postnl](https://github.com/peternijssen/ha-postnl) | PostNL parcel tracker — maintained version. The [arjenbos/ha-postnl](https://github.com/arjenbos/ha-postnl) original is the legacy version. |
-| [ha-dpd](https://github.com/peternijssen/ha-dpd) | DPD parcel tracker. |
-| [ha-gls](https://github.com/peternijssen/ha-gls) | GLS Netherlands parcel tracker — no account, you enter tracking numbers yourself. |
-| [ha-parcel-aggregator](https://github.com/peternijssen/ha-parcel-aggregator) | Rolls up counts and next-delivery timestamps from all installed carrier integrations into a single set of sensors. |
+| [ha-postnl](https://github.com/ha-parcel-integrations/ha-postnl) | PostNL parcel tracker — maintained version. The [arjenbos/ha-postnl](https://github.com/arjenbos/ha-postnl) original is the legacy version. |
+| [ha-dpd](https://github.com/ha-parcel-integrations/ha-dpd) | DPD parcel tracker. |
+| [ha-gls](https://github.com/ha-parcel-integrations/ha-gls) | GLS Netherlands parcel tracker — no account, you enter tracking numbers yourself. |
+| [ha-parcel-aggregator](https://github.com/ha-parcel-integrations/ha-parcel-aggregator) | Rolls up counts and next-delivery timestamps from all installed carrier integrations into a single set of sensors. |
 
 ## Disclaimer
 
