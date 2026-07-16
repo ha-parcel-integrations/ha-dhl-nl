@@ -92,14 +92,21 @@ re-propose these as improvements:
   DHL status string lives on the parcel's `raw_status` field; do not
   re-introduce it on `status`.
 - **Events**: the coordinator fires `dhl_nl_parcel_registered`,
-  `dhl_nl_parcel_status_changed` and `dhl_nl_parcel_delivery_time_changed`
-  on the HA event bus. Events are suppressed on the very first refresh
-  so we do not flood users with "registered" events for parcels that
-  already existed. ``delivery_time_changed`` only fires when at least
-  one of ``planned_from`` / ``planned_to`` ends up with a non-null
-  value that differs from the previous one — ``value → null`` drops
-  the ETA and is intentionally silent (carrier just lost the window;
-  not worth a notification).
+  `dhl_nl_parcel_status_changed`, `dhl_nl_parcel_delivered` and
+  `dhl_nl_parcel_delivery_time_changed` on the HA event bus. Events are
+  suppressed on the very first refresh so we do not flood users with
+  "registered" events for parcels that already existed.
+  ``delivery_time_changed`` only fires when at least one of
+  ``planned_from`` / ``planned_to`` ends up with a non-null value that
+  differs from the previous one — ``value → null`` drops the ETA and is
+  intentionally silent (carrier just lost the window; not worth a
+  notification). Incoming events run over the **active + delivered**
+  set combined (same trick as outgoing), so the terminal hop is visible:
+  a change **to** `ParcelStatus.DELIVERED` fires only `_delivered`
+  (never also `_status_changed`), a barcode first seen already-delivered
+  fires nothing, and `registered` only fires for not-yet-delivered new
+  barcodes. `_known_state` / `_known_delivery_times` track the combined
+  set.
 - **`has_entity_name = True`** on every entity, with `translation_key`
   routing names through `strings.json` and the language files. Drop
   `_attr_name` is the rule — translations are the source of truth.

@@ -666,34 +666,62 @@ async def test_registered_event_for_new_barcodes(hass):
     assert registered[0]["barcode"] == "B"
 
 
-async def test_status_changed_event_when_status_transitions(hass):
-    """A barcode whose normalized status changes fires status_changed."""
+async def test_delivered_event_when_parcel_transitions_to_delivered(hass):
+    """The hop to delivered fires parcel_delivered — and never status_changed.
+
+    Incoming events run over the active + delivered set combined, so the
+    terminal transition is visible even though the parcel leaves the
+    active list. The dedicated event takes precedence over status_changed.
+    """
+    recent = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
     client = MagicMock()
     client.async_get_parcels = AsyncMock(side_effect=[
         [_parcel("IN_DELIVERY", barcode="A")],
-        [_parcel("DELIVERED", barcode="A")],
+        [_parcel("DELIVERED", barcode="A", moment=recent)],
     ])
 
+    delivered: list = []
     changed: list = []
+    hass.bus.async_listen(
+        "dhl_nl_parcel_delivered", lambda e: delivered.append(e.data)
+    )
     hass.bus.async_listen(
         "dhl_nl_parcel_status_changed", lambda e: changed.append(e.data)
     )
 
     coordinator = DhlCoordinator(hass, client, _mock_entry())
     await coordinator._async_update_data()
-    # After refresh 1, barcode A becomes delivered → it falls out of
-    # active parcels, so it does not appear on refresh 2 in the active
-    # list either. The status_changed event fires only when the barcode
-    # is still present with a different status.
-    # To test a real transition, both refreshes must return barcode A in
-    # the active list with different statuses.
     await coordinator._async_update_data()
     await hass.async_block_till_done()
 
-    # Status went from IN_DELIVERY → DELIVERED, but DELIVERED filters out
-    # of the active list. So expect no status_changed event in this scenario.
-    # This is documented behaviour: events track active parcels only.
     assert changed == []
+    assert len(delivered) == 1
+    assert delivered[0]["barcode"] == "A"
+    assert delivered[0]["status"] == ParcelStatus.DELIVERED
+
+
+async def test_no_events_for_new_already_delivered_parcel(hass):
+    """A barcode first seen already delivered fires neither registered nor delivered."""
+    recent = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    client = MagicMock()
+    client.async_get_parcels = AsyncMock(side_effect=[
+        [_parcel("IN_DELIVERY", barcode="A")],
+        [
+            _parcel("IN_DELIVERY", barcode="A"),
+            _parcel("DELIVERED", barcode="B", moment=recent),
+        ],
+    ])
+
+    fired: list = []
+    hass.bus.async_listen("dhl_nl_parcel_registered", lambda e: fired.append(e))
+    hass.bus.async_listen("dhl_nl_parcel_delivered", lambda e: fired.append(e))
+
+    coordinator = DhlCoordinator(hass, client, _mock_entry())
+    await coordinator._async_update_data()
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert fired == []
 
 
 async def test_status_changed_event_when_active_status_transitions(hass):

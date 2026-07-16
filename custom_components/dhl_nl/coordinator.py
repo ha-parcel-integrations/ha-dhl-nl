@@ -533,7 +533,10 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
             descending=True,
         )
 
-        self._fire_change_events(normalized_active)
+        # Incoming = active + delivered, combined so the transition to
+        # delivered is visible in one set (mirrors the outgoing pattern).
+        incoming = normalized_active + self.delivered
+        self._fire_change_events(incoming)
 
         # Outgoing = returns (active) + delivered returns, combined so a
         # transition from in-transit to delivered is visible in one set.
@@ -542,12 +545,12 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
 
         self._known_state = {
             p["barcode"]: p["status"]
-            for p in normalized_active
+            for p in incoming
             if p.get("barcode")
         }
         self._known_delivery_times = {
             p["barcode"]: (p.get("planned_from"), p.get("planned_to"))
-            for p in normalized_active
+            for p in incoming
             if p.get("barcode")
         }
         self._known_outgoing_state = {
@@ -564,12 +567,17 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
 
         Silent on the very first refresh — we cannot reliably know which
         parcels are "new" to the user vs. "already there before HA started".
-        From the second refresh onward, every parcel that was not present
-        before yields one ``dhl_nl_parcel_registered`` event, every parcel
-        whose normalized status changed yields one
-        ``dhl_nl_parcel_status_changed`` event, and every parcel whose
-        ``planned_from`` or ``planned_to`` changed to a non-null value
-        yields one ``dhl_nl_parcel_delivery_time_changed`` event.
+        From the second refresh onward, every not-yet-delivered parcel that
+        was not present before yields one ``dhl_nl_parcel_registered`` event,
+        every parcel whose normalized status transitions **to** ``DELIVERED``
+        yields one ``dhl_nl_parcel_delivered`` event, every other status
+        change yields one ``dhl_nl_parcel_status_changed`` event, and every
+        parcel whose ``planned_from`` or ``planned_to`` changed to a non-null
+        value yields one ``dhl_nl_parcel_delivery_time_changed`` event.
+        ``delivered`` takes precedence over ``status_changed`` for the
+        terminal hop, so it fires exactly one (dedicated) event, not both. A
+        parcel that is already delivered the first time it is seen never
+        fires — mirroring the outgoing events.
         """
         if self._known_state is None:
             return
@@ -583,22 +591,29 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
                 continue
             new_status = parcel["status"]
             if barcode not in self._known_state:
-                self.hass.bus.async_fire(
-                    f"{DOMAIN}_parcel_registered",
-                    {**parcel, "device_id": device_id},
-                )
+                if new_status != ParcelStatus.DELIVERED:
+                    self.hass.bus.async_fire(
+                        f"{DOMAIN}_parcel_registered",
+                        {**parcel, "device_id": device_id},
+                    )
                 continue
 
             if self._known_state[barcode] != new_status:
-                self.hass.bus.async_fire(
-                    f"{DOMAIN}_parcel_status_changed",
-                    {
-                        **parcel,
-                        "device_id": device_id,
-                        "old_status": self._known_state[barcode],
-                        "new_status": new_status,
-                    },
-                )
+                if new_status == ParcelStatus.DELIVERED:
+                    self.hass.bus.async_fire(
+                        f"{DOMAIN}_parcel_delivered",
+                        {**parcel, "device_id": device_id},
+                    )
+                else:
+                    self.hass.bus.async_fire(
+                        f"{DOMAIN}_parcel_status_changed",
+                        {
+                            **parcel,
+                            "device_id": device_id,
+                            "old_status": self._known_state[barcode],
+                            "new_status": new_status,
+                        },
+                    )
 
             old_from, old_to = known_times.get(barcode, (None, None))
             new_from = parcel.get("planned_from")
