@@ -340,6 +340,17 @@ re-propose these as improvements:
   table in `coordinator.py`.
 - Network calls return raw JSON dicts; there is no DTO layer.
 
+## Shared conventions
+
+Workflow, commit style, versioning and release notes live in
+[`ha-parcel-integrations/.github/CONVENTIONS.md`](https://github.com/ha-parcel-integrations/.github/blob/main/CONVENTIONS.md)
+and are not repeated here. In short: single-line commit messages, semver, tags
+without a `v` prefix, maintainer-only merges, user-facing release notes.
+
+The structural baseline every carrier repo shares is the
+[`ha-carrier-template`](https://github.com/ha-parcel-integrations/ha-carrier-template)
+scaffold. This repo predates it; where the two differ, the template is usually the newer thinking.
+
 ## Running tests
 
 ```
