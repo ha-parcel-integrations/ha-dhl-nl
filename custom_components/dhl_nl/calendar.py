@@ -15,6 +15,7 @@ from homeassistant.util import dt as dt_util
 from . import DhlConfigEntry
 from .const import DOMAIN
 from .coordinator import DhlCoordinator
+from .device import build_device_info
 
 # The coordinator fans data out to this entity; no per-entity polling.
 PARALLEL_UPDATES = 0
@@ -24,18 +25,6 @@ PARALLEL_UPDATES = 0
 _DEFAULT_EVENT_DURATION = timedelta(hours=1)
 
 
-def _build_device_info(user_info: dict[str, Any]) -> DeviceInfo:
-    """Return the DeviceInfo shared with this account's sensors."""
-    user_id: str = user_info.get("userId", "")
-    email: str = user_info.get("email", "")
-    device_name = f"DHL ({email})" if email else "DHL"
-    return DeviceInfo(
-        identifiers={(DOMAIN, user_id)},
-        name=device_name,
-        manufacturer="DHL",
-        entry_type=DeviceEntryType.SERVICE,
-        configuration_url="https://my.dhlecommerce.nl",
-    )
 
 
 def _parse(value: str | None) -> datetime | None:
@@ -83,7 +72,7 @@ class DhlDeliveriesCalendar(CoordinatorEntity[DhlCoordinator], CalendarEntity):
         super().__init__(coordinator)
         user_id: str = user_info.get("userId", "")
         self._attr_unique_id = f"{user_id}_deliveries"
-        self._attr_device_info = _build_device_info(user_info)
+        self._attr_device_info = build_device_info(user_info)
 
     def _events(self) -> list[CalendarEvent]:
         """Build calendar events from the active incoming parcels."""

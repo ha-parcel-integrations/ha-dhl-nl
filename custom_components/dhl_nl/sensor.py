@@ -17,6 +17,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from . import DhlConfigEntry
 from .const import DOMAIN, ParcelStatus
 from .coordinator import DhlCoordinator, DhlSentShipmentsCoordinator, sort_parcels_by_ts
+from .device import build_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -129,25 +130,6 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-def _build_device_info(user_info: dict[str, Any]) -> DeviceInfo:
-    """Return a DeviceInfo dict shared by all sensors for this account.
-
-    Device name is ``"DHL (<email>)"`` so the auto-prefixed entity
-    friendly names read as ``"DHL (account@example.com) Incoming
-    parcels"``. Including the account in the device name disambiguates
-    users with multiple DHL accounts and matches mainstream HA style for
-    cloud-account integrations.
-    """
-    user_id: str = user_info.get("userId", "")
-    email: str = user_info.get("email", "")
-    device_name = f"DHL ({email})" if email else "DHL"
-    return DeviceInfo(
-        identifiers={(DOMAIN, user_id)},
-        name=device_name,
-        manufacturer="DHL",
-        entry_type=DeviceEntryType.SERVICE,
-        configuration_url="https://my.dhlecommerce.nl",
-    )
 
 
 class DhlIncomingParcelsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
@@ -181,7 +163,7 @@ class DhlIncomingParcelsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
         self._async_add_entities = async_add_entities
         user_id: str = user_info.get("userId", "")
         self._attr_unique_id = f"{user_id}_incoming_parcels"
-        self._attr_device_info = _build_device_info(user_info)
+        self._attr_device_info = build_device_info(user_info)
         self._known_barcodes: set[str] = known_barcodes or set()
 
     # ------------------------------------------------------------------
@@ -255,7 +237,7 @@ class DhlParcelSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
         user_id: str = user_info.get("userId", "")
         self._attr_unique_id = f"{user_id}_{barcode}"
         self._attr_translation_placeholders = {"barcode": barcode}
-        self._attr_device_info = _build_device_info(user_info)
+        self._attr_device_info = build_device_info(user_info)
 
     # ------------------------------------------------------------------
     # SensorEntity interface
@@ -320,7 +302,7 @@ class DhlSentShipmentsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
         self._user_info = user_info
         user_id: str = user_info.get("userId", "")
         self._attr_unique_id = f"{user_id}_outgoing_parcels"
-        self._attr_device_info = _build_device_info(user_info)
+        self._attr_device_info = build_device_info(user_info)
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to the sent-shipments coordinator as well.
@@ -383,7 +365,7 @@ class DhlOutgoingDeliveredSensor(CoordinatorEntity[DhlCoordinator], SensorEntity
         self._user_info = user_info
         user_id: str = user_info.get("userId", "")
         self._attr_unique_id = f"{user_id}_outgoing_delivered_parcels"
-        self._attr_device_info = _build_device_info(user_info)
+        self._attr_device_info = build_device_info(user_info)
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to the sent-shipments coordinator as well (see
@@ -435,7 +417,7 @@ class DhlNextDeliverySensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
         self._user_info = user_info
         user_id: str = user_info.get("userId", "")
         self._attr_unique_id = f"{user_id}_next_delivery"
-        self._attr_device_info = _build_device_info(user_info)
+        self._attr_device_info = build_device_info(user_info)
 
     def _delivery_moments(self) -> list[tuple[datetime, dict]]:
         """Return (datetime, parcel) pairs for parcels with a known ``planned_from``."""
@@ -497,7 +479,7 @@ class DhlEnRouteToServicePointSensor(CoordinatorEntity[DhlCoordinator], SensorEn
         self._user_info = user_info
         user_id: str = user_info.get("userId", "")
         self._attr_unique_id = f"{user_id}_en_route_to_service_point"
-        self._attr_device_info = _build_device_info(user_info)
+        self._attr_device_info = build_device_info(user_info)
 
     def _get_en_route_parcels(self) -> list[dict]:
         """Return active parcels still in transit to a ServicePoint."""
@@ -540,7 +522,7 @@ class DhlPickupPendingSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
         self._user_info = user_info
         user_id: str = user_info.get("userId", "")
         self._attr_unique_id = f"{user_id}_pickup_pending"
-        self._attr_device_info = _build_device_info(user_info)
+        self._attr_device_info = build_device_info(user_info)
 
     def _get_pickup_parcels(self) -> list[dict]:
         """Return parcels that have arrived at a ServicePoint and are ready for collection."""
@@ -579,7 +561,7 @@ class DhlDeliveredParcelsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity)
         self._user_info = user_info
         user_id: str = user_info.get("userId", "")
         self._attr_unique_id = f"{user_id}_delivered_parcels"
-        self._attr_device_info = _build_device_info(user_info)
+        self._attr_device_info = build_device_info(user_info)
 
     @property
     def native_value(self) -> int:
@@ -613,7 +595,7 @@ class DhlLastUpdateSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
         self._user_info = user_info
         user_id: str = user_info.get("userId", "")
         self._attr_unique_id = f"{user_id}_last_update"
-        self._attr_device_info = _build_device_info(user_info)
+        self._attr_device_info = build_device_info(user_info)
 
     @property
     def native_value(self) -> datetime | None:

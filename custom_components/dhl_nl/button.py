@@ -11,28 +11,13 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import DhlConfigEntry
 from .const import DOMAIN
+from .device import build_device_info
 
 # A manual refresh is a single API round-trip; HA's per-entity throttling
 # adds nothing here.
 PARALLEL_UPDATES = 0
 
 
-def _build_device_info(user_info: dict[str, Any]) -> DeviceInfo:
-    """Return the DeviceInfo shared with this account's sensors.
-
-    Mirrors ``sensor._build_device_info`` so the button lands on the same
-    ``DHL (<email>)`` device rather than spawning a second one.
-    """
-    user_id: str = user_info.get("userId", "")
-    email: str = user_info.get("email", "")
-    device_name = f"DHL ({email})" if email else "DHL"
-    return DeviceInfo(
-        identifiers={(DOMAIN, user_id)},
-        name=device_name,
-        manufacturer="DHL",
-        entry_type=DeviceEntryType.SERVICE,
-        configuration_url="https://my.dhlecommerce.nl",
-    )
 
 
 async def async_setup_entry(
@@ -61,7 +46,7 @@ class DhlRefreshButton(ButtonEntity):
         user_info = entry.runtime_data.user_info
         user_id: str = user_info.get("userId", "")
         self._attr_unique_id = f"{user_id}_refresh"
-        self._attr_device_info = _build_device_info(user_info)
+        self._attr_device_info = build_device_info(user_info)
 
     async def async_press(self) -> None:
         """Trigger an immediate refresh of the incoming and sent coordinators."""
