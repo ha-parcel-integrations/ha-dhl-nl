@@ -226,12 +226,24 @@ def _delivery_window(parcel: dict) -> tuple[str | None, str | None]:
 def _tracking_url(parcel: dict) -> str | None:
     """Construct the my.dhlecommerce.nl tracking URL for a parcel.
 
-    Returns ``None`` when the parcel is missing the barcode or destination
-    postcode. The URL pattern is taken from the public portal and depends on
-    DHL keeping it stable.
+    The portal keys the lookup on the **receiver's** postcode, not the delivery
+    destination's. For a normal home delivery the two match, but a parcel routed
+    to a ServicePoint has the pickup point's postcode as ``destination`` — and
+    the portal returns "package not found" for that, so the receiver postcode is
+    the correct one (it is also what the track-trace API call keys on, see
+    ``async_get_track_trace``). Fall back to ``destination`` only when the
+    receiver has no postcode.
+
+    Returns ``None`` when the parcel is missing the barcode or both postcodes.
+    The URL pattern is taken from the public portal and depends on DHL keeping
+    it stable.
     """
     barcode = parcel.get("barcode")
-    postal = (((parcel.get("destination") or {}).get("address") or {}).get("postalCode") or "")
+    postal = (
+        ((parcel.get("receiver") or {}).get("address") or {}).get("postalCode")
+        or ((parcel.get("destination") or {}).get("address") or {}).get("postalCode")
+        or ""
+    )
     postal = postal.replace(" ", "")
     if not barcode or not postal:
         return None

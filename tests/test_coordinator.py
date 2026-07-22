@@ -451,6 +451,7 @@ def test_normalize_constructs_tracking_url():
     parcel = {
         "barcode": "3SXXXXXXXXXXXXXXXXX",
         "category": "IN_DELIVERY",
+        "receiver": {"address": {"postalCode": "1234 AB"}},
         "destination": {"address": {"postalCode": "1234 AB"}},
     }
     result = normalize_parcel(parcel)
@@ -459,10 +460,40 @@ def test_normalize_constructs_tracking_url():
     )
 
 
+def test_tracking_url_uses_receiver_postcode_not_destination():
+    """Pickup-point deliveries have a ServicePoint destination postcode that the
+    portal rejects; the receiver's postcode is the one that resolves (issue #9)."""
+    parcel = {
+        "barcode": "3SXXXXXXXXXXXXXXXXX",
+        "category": "IN_DELIVERY",
+        "receiver": {"address": {"postalCode": "1234 AB"}},
+        "destination": {
+            "locationType": "SERVICEPOINT",
+            "address": {"postalCode": "5678 CD"},
+        },
+    }
+    assert normalize_parcel(parcel)["url"] == (
+        "https://my.dhlecommerce.nl/portal/tracktrace/3SXXXXXXXXXXXXXXXXX/1234AB"
+    )
+
+
+def test_tracking_url_falls_back_to_destination_postcode():
+    """When the receiver carries no postcode, the destination is still used."""
+    parcel = {
+        "barcode": "3SXXXXXXXXXXXXXXXXX",
+        "category": "IN_DELIVERY",
+        "destination": {"address": {"postalCode": "1234 AB"}},
+    }
+    assert normalize_parcel(parcel)["url"] == (
+        "https://my.dhlecommerce.nl/portal/tracktrace/3SXXXXXXXXXXXXXXXXX/1234AB"
+    )
+
+
 def test_normalize_url_none_when_postcode_missing():
     parcel = {
         "barcode": "3SXXXXXXXXXXXXXXXXX",
         "category": "IN_DELIVERY",
+        "receiver": {"address": {}},
         "destination": {"address": {}},
     }
     assert normalize_parcel(parcel)["url"] is None
