@@ -40,6 +40,7 @@ _STATUS_MAP: dict[str, ParcelStatus] = {
     "OUT_FOR_DELIVERY": ParcelStatus.OUT_FOR_DELIVERY,
     "LOAD_VEHICLE": ParcelStatus.OUT_FOR_DELIVERY,
     "PARCEL_INTO_FALLBACK": ParcelStatus.OUT_FOR_DELIVERY,
+    "PARCEL_WILL_BE_DELIVERED_SOON": ParcelStatus.OUT_FOR_DELIVERY,
     # --- Ready for the recipient to collect (ServicePoint / locker / depot) ---
     STATUS_AT_SERVICE_POINT: ParcelStatus.AT_PICKUP_POINT,
     "AWAITING_RECEIVER_COLLECTION": ParcelStatus.AT_PICKUP_POINT,
@@ -58,12 +59,23 @@ _STATUS_MAP: dict[str, ParcelStatus] = {
     "COLLECTED_AT_ACCESSPOINT": ParcelStatus.DELIVERED,
     "COLLECTED_AT_PARCELSTATION": ParcelStatus.DELIVERED,
     "SHIPMENT_COLLECTED": ParcelStatus.DELIVERED,
+    # Direct delivery variants — the parcel reached the recipient (or their
+    # neighbour / safe place / mailbox). All terminal; without these they fall
+    # through to a coarser "in delivery" category and never reach DELIVERED.
+    "DELIVERED_AT_NEIGHBOURS": ParcelStatus.DELIVERED,
+    "DELIVERED_AT_PREFERED_NEIGHBOURS": ParcelStatus.DELIVERED,
+    "DELIVERED_AT_SAFEPLACE": ParcelStatus.DELIVERED,
+    "DELIVERED_IN_MAILBOX": ParcelStatus.DELIVERED,
+    "DELIVERED_DAMAGED": ParcelStatus.DELIVERED,
+    "DELIVERED_NOT_IN_TIME": ParcelStatus.DELIVERED,
+    "DELIVERED_NO_CODE_VALIDATION": ParcelStatus.DELIVERED,
     # --- Failed delivery, going back to the sender ---
     # None of these are expressible via the category map, which would mislabel
     # them IN_TRANSIT (UNDERWAY) or PROBLEM (INTERVENTION/EXCEPTION).
     "ADDRESS_UNKNOWN": ParcelStatus.RETURNING,
     "CUSTOMS_DATA_INCORRECT_RETURN_TO_SHIPPER": ParcelStatus.RETURNING,
     "DAMAGE_RETURN": ParcelStatus.RETURNING,
+    "DELIVERED_AT_SHIPPER": ParcelStatus.RETURNING,
     "DELIVERY_CODE_MISSING_RETURN": ParcelStatus.RETURNING,
     "DELIVERY_DATA_INCORRECT_RETURN": ParcelStatus.RETURNING,
     "EXPECTED_RETURN_DELIVERED_AT_SHIPPER_CALCULATED": ParcelStatus.RETURNING,
@@ -78,27 +90,44 @@ _STATUS_MAP: dict[str, ParcelStatus] = {
     "ON_ROUTE_TO_SHIPPER": ParcelStatus.RETURNING,
     "PARCELSTATION_DELIVERY_UNSUCCESFULL_RETURN": ParcelStatus.RETURNING,
     "PARCEL_ALREADY_RETURNED": ParcelStatus.RETURNING,
+    "PARCEL_READY_FOR_RETURN_TO_HUB": ParcelStatus.RETURNING,
     "PARCEL_RELABELED_FOR_RETURN_TO_SHIPPER": ParcelStatus.RETURNING,
+    "PARCEL_RETURNED_FROM_ROUTE": ParcelStatus.RETURNING,
     "PARCEL_SCANNED_AT_RETURN_HUB": ParcelStatus.RETURNING,
+    "PARCEL_SCANNED_FOR_RETURN_TO_HUB": ParcelStatus.RETURNING,
     "PARCEL_TOO_HEAVY_RETURN": ParcelStatus.RETURNING,
     "PARCEL_TOO_LARGE_RETURN": ParcelStatus.RETURNING,
     "POSTAL_CODE_INCORRECT": ParcelStatus.RETURNING,
+    "POSTPROCESS_DELIVERED_AT_SHIPPER": ParcelStatus.RETURNING,
+    "POSTPROCESS_RETURN_CONSOLIDATION": ParcelStatus.RETURNING,
+    "POSTPROCESS_RETURN_CONSOLIDATION_DEPART": ParcelStatus.RETURNING,
+    "POSTPROCESS_RETURN_CONSOLIDATION_LOAD": ParcelStatus.RETURNING,
     "PO_BOX": ParcelStatus.RETURNING,
     "RECEIVER_RETURN": ParcelStatus.RETURNING,
     "RECEIVER_UNKNOWN_RETURN": ParcelStatus.RETURNING,
+    "REFUSED_AT_PARCELSHOP": ParcelStatus.RETURNING,
+    "REFUSED_BY_RECEIVER": ParcelStatus.RETURNING,
     "REFUSED_NOT_COLLECTED": ParcelStatus.RETURNING,
     "REFUSED_RETURN": ParcelStatus.RETURNING,
+    "REFUSED_RETURN_TO_DD": ParcelStatus.RETURNING,
     "RETURNED_NOT_COLLECTED": ParcelStatus.RETURNING,
     "RETURNED_TO_SHIPPER": ParcelStatus.RETURNING,
     "RETURN_DELIVERED_AT_SHIPPER_CALCULATED": ParcelStatus.RETURNING,
+    "SPONTANEOUS_RETURN": ParcelStatus.RETURNING,
     "STORAGE_PERIOD_ENDED_AT_ACCESSPOINT": ParcelStatus.RETURNING,
     "STORAGE_PERIOD_ENDED_AT_PARCELSHOP": ParcelStatus.RETURNING,
     "STORAGE_PERIOD_ENDED_AT_PARCELSTATION": ParcelStatus.RETURNING,
+    "UNJUSTIFIED_SPONTANEOUS_RETURN": ParcelStatus.RETURNING,
     # --- Still on its way (mapped explicitly to avoid a wrong category) ---
-    # Receiver asked for delivery at another time/date — benign, the parcel
-    # is still on its way. Without this it would fall through to the
-    # INTERVENTION category and be mislabelled as PROBLEM.
+    # Receiver asked for delivery at another time/date/place — benign, the
+    # parcel is still on its way. Without these they fall through to the
+    # INTERVENTION category and are mislabelled as PROBLEM.
     "INTERVENTION_RECEIVER_REQUESTS_DELIVERY_AT_ANOTHER_TIME/DATE": ParcelStatus.IN_TRANSIT,
+    "INTERVENTION_RECEIVER_REQUESTS_DELIVERY_AT_ACCESSPOINT": ParcelStatus.IN_TRANSIT,
+    "INTERVENTION_RECEIVER_REQUESTS_DELIVERY_AT_NEIGHBOURS": ParcelStatus.IN_TRANSIT,
+    "INTERVENTION_RECEIVER_REQUESTS_DELIVERY_AT_PARCELSHOP": ParcelStatus.IN_TRANSIT,
+    "INTERVENTION_RECEIVER_REQUESTS_DELIVERY_AT_PARCELSTATION": ParcelStatus.IN_TRANSIT,
+    "INTERVENTION_RECEIVER_REQUESTS_DELIVERY_AT_PREFERRED_NEIGHBOURS": ParcelStatus.IN_TRANSIT,
 }
 
 # DHL category (high-level state) → canonical ParcelStatus. Used as a
