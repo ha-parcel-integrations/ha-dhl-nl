@@ -2,7 +2,6 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from homeassistant.components import automation
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.helpers import device_registry as dr

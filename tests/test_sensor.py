@@ -369,7 +369,8 @@ def test_outgoing_delivered_sensor_attributes_include_delivered_flag():
 @pytest.mark.parametrize("sensor_cls", [DhlSentShipmentsSensor, DhlOutgoingDeliveredSensor])
 async def test_outgoing_sensor_also_subscribes_to_sent_coordinator(sensor_cls):
     """Each outgoing sensor reads from both coordinators, so it must also
-    listen to the sent-shipments coordinator, not just the main one."""
+    listen to the sent-shipments coordinator, not just the main one.
+    """
     sent_coordinator = _make_sent_coordinator()
     sensor = sensor_cls(_make_coordinator([]), sent_coordinator, USER_INFO)
     sensor.async_on_remove = MagicMock()

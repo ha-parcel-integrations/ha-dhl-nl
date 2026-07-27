@@ -116,7 +116,8 @@ def test_other_intervention_still_maps_to_problem():
 )
 def test_granular_status_overrides_category(status, category, expected):
     """Finer parcel-nl statuses take precedence over the coarse category —
-    without them, returns/pickups/out-for-delivery are mislabelled."""
+    without them, returns/pickups/out-for-delivery are mislabelled.
+    """
     assert map_parcel_status({"status": status, "category": category}) == expected
 
 
@@ -469,7 +470,8 @@ def test_normalize_handles_missing_fields():
 def test_normalize_always_carries_none_weight_and_dimensions_on_dhl():
     """DHL doesn't expose weight/dimensions in any endpoint we know of, so the
     canonical fields are always None — but they MUST be present so the
-    aggregator and cross-carrier cards can rely on the keys existing."""
+    aggregator and cross-carrier cards can rely on the keys existing.
+    """
     parcel = {"barcode": "ABC", "category": "IN_DELIVERY", "destination": {}}
     result = normalize_parcel(parcel)
     assert "weight" in result and result["weight"] is None
@@ -491,7 +493,8 @@ def test_normalize_constructs_tracking_url():
 
 def test_tracking_url_uses_receiver_postcode_not_destination():
     """Pickup-point deliveries have a ServicePoint destination postcode that the
-    portal rejects; the receiver's postcode is the one that resolves (issue #9)."""
+    portal rejects; the receiver's postcode is the one that resolves (issue #9).
+    """
     parcel = {
         "barcode": "3SXXXXXXXXXXXXXXXXX",
         "category": "IN_DELIVERY",
@@ -633,7 +636,8 @@ async def test_outgoing_status_changed_when_return_status_transitions(hass):
 
 async def test_outgoing_delivered_when_return_is_delivered(hass):
     """A return that transitions to delivered fires outgoing_parcel_delivered
-    and NOT outgoing_parcel_status_changed (delivered takes precedence)."""
+    and NOT outgoing_parcel_status_changed (delivered takes precedence).
+    """
     recent = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
     client = MagicMock()
     client.async_get_parcels = AsyncMock(side_effect=[
@@ -868,7 +872,7 @@ async def test_delivery_time_changed_fires_when_planned_time_shifts(hass):
 
 
 async def test_no_delivery_time_changed_event_when_planned_time_clears(hass):
-    """value → null transitions are silent (don't page users on lost ETAs)."""
+    """Value → null transitions are silent (don't page users on lost ETAs)."""
     client = MagicMock()
     client.async_get_parcels = AsyncMock(side_effect=[
         [_parcel("IN_DELIVERY", barcode="A", moment="2026-06-27T10:00:00+02:00")],

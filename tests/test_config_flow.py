@@ -3,8 +3,7 @@ from unittest.mock import AsyncMock, patch
 
 import aiohttp
 import pytest
-
-from homeassistant.config_entries import SOURCE_REAUTH, SOURCE_USER
+from homeassistant.config_entries import SOURCE_USER
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.data_entry_flow import FlowResultType
 
@@ -166,7 +165,8 @@ async def test_options_flow_updates_filter_and_refresh_interval(hass):
 async def test_options_flow_refresh_interval_default_is_string(hass):
     """Regression: the refresh-interval default must be a string so a stored
     int doesn't trip the SelectSelector's 'expected str' validation when the
-    polling section is submitted without an explicit value."""
+    polling section is submitted without an explicit value.
+    """
     from pytest_homeassistant_custom_component.common import MockConfigEntry
 
     entry = MockConfigEntry(

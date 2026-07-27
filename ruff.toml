@@ -1,6 +1,7 @@
 # Ruff configuration — mirrors Home Assistant's PEP 8 + PEP 257 enforcement.
 # Home Assistant applies strict pycodestyle (PEP 8) and pydocstyle (PEP 257)
-# checks to all submitted code; the suite follows the same ruleset.
+# checks to all submitted code; the suite follows the same ruleset and the same
+# ignores (see Home Assistant core's pyproject.toml).
 # https://developers.home-assistant.io/docs/development_guidelines
 line-length = 88
 target-version = "py312"
@@ -8,11 +9,24 @@ target-version = "py312"
 [lint]
 # pydocstyle (D) + pycodestyle errors/warnings (E/W) + pyflakes (F) + isort (I).
 select = ["D", "E", "F", "W", "I"]
-# Home Assistant's docstring ignores: D203/D213 conflict with D211/D212
-# (HA style: no blank line before a class docstring, and the summary on the
-# first physical line); D107 (missing __init__ docstring) is not required.
-ignore = ["D107", "D203", "D213"]
+ignore = [
+    # Home Assistant's pydocstyle ignores (conflicting / non-required rules).
+    "D202",  # no blank lines allowed after function docstring
+    "D203",  # conflicts with D211 (no blank line before a class docstring)
+    "D213",  # conflicts with D212 (summary on the first physical line)
+    "D406",  # section name should end with a newline (Google style, unused)
+    "D407",  # missing dashed underline after section (Google style, unused)
+    "D417",  # missing argument descriptions in the docstring
+    # Line length and indentation are the formatter's job, per Home Assistant.
+    "E501",  # line too long
+    "E111", "E114", "E117", "W191", "D206", "D300",
+]
 
 [lint.isort]
 # The integration package is first-party, so its imports group on their own.
 known-first-party = ["custom_components"]
+
+[lint.per-file-ignores]
+# Tests don't need docstrings (PEP 257 / D rules); everything else stays on.
+# A common HACS pragmatism — Home Assistant core does document its tests.
+"tests/**" = ["D"]

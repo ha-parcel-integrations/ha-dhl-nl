@@ -1,7 +1,6 @@
 """Unit tests for the DHL API client."""
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
-import aiohttp
 import pytest
 
 from custom_components.dhl_nl.api import (

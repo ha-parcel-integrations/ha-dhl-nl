@@ -19,9 +19,6 @@ from .const import (
     DOMAIN,
     ParcelStatus,
 )
-
-_LOGGER = logging.getLogger(__name__)
-
 from .parcels import (
     _apply_delivered_filter,
     build_history,
@@ -34,6 +31,9 @@ from .parcels import (
     normalize_parcel,
     sort_parcels_by_ts,
 )
+
+_LOGGER = logging.getLogger(__name__)
+
 
 def _refresh_interval(entry: ConfigEntry) -> timedelta:
     """Return the configured refresh interval as a ``timedelta``."""
@@ -52,6 +52,7 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
             client: An authenticated :class:`DhlApiClient` instance.
             entry: The config entry, used to read options for the delivered
                 filter and the configured refresh interval.
+
         """
         super().__init__(
             hass,
@@ -376,6 +377,7 @@ class DhlSentShipmentsCoordinator(DataUpdateCoordinator[list[dict]]):
             hass: The Home Assistant instance.
             client: An authenticated :class:`DhlApiClient` instance.
             entry: The config entry, used to read the configured refresh interval.
+
         """
         super().__init__(
             hass,

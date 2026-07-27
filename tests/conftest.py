@@ -2,7 +2,6 @@
 import sys
 
 import pytest
-
 from pytest_homeassistant_custom_component.plugins import hass  # noqa: F401
 
 
@@ -29,7 +28,7 @@ if sys.platform == "win32":
     # HA's aiohttp helper hardcodes aiohttp's AsyncResolver, whose aiodns
     # backend refuses the Proactor loop the suite runs on under Windows.
     # Swap in the threaded resolver for the tests — no test resolves DNS.
-    from aiohttp.resolver import ThreadedResolver
     import homeassistant.helpers.aiohttp_client as _ha_aiohttp_client
+    from aiohttp.resolver import ThreadedResolver
 
     _ha_aiohttp_client.AsyncResolver = ThreadedResolver

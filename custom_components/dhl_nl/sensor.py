@@ -5,12 +5,14 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.entity import DeviceInfo
-from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -368,8 +370,10 @@ class DhlOutgoingDeliveredSensor(CoordinatorEntity[DhlCoordinator], SensorEntity
         self._attr_device_info = build_device_info(user_info)
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to the sent-shipments coordinator as well (see
-        :meth:`DhlSentShipmentsSensor.async_added_to_hass`)."""
+        """Subscribe to the sent-shipments coordinator as well.
+
+        See :meth:`DhlSentShipmentsSensor.async_added_to_hass`.
+        """
         await super().async_added_to_hass()
         self.async_on_remove(
             self._sent_coordinator.async_add_listener(self.async_write_ha_state)
@@ -475,6 +479,7 @@ class DhlEnRouteToServicePointSensor(CoordinatorEntity[DhlCoordinator], SensorEn
         coordinator: DhlCoordinator,
         user_info: dict[str, Any],
     ) -> None:
+        """Initialise the en-route-to-ServicePoint sensor."""
         super().__init__(coordinator)
         self._user_info = user_info
         user_id: str = user_info.get("userId", "")
@@ -491,10 +496,12 @@ class DhlEnRouteToServicePointSensor(CoordinatorEntity[DhlCoordinator], SensorEn
 
     @property
     def native_value(self) -> int:
+        """Return the number of parcels en route to a ServicePoint."""
         return len(self._get_en_route_parcels())
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
+        """Return details of each parcel en route to a ServicePoint."""
         return {"parcels": self._get_en_route_parcels()}
 
 
@@ -557,6 +564,7 @@ class DhlDeliveredParcelsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity)
         coordinator: DhlCoordinator,
         user_info: dict[str, Any],
     ) -> None:
+        """Initialise the delivered-parcels sensor."""
         super().__init__(coordinator)
         self._user_info = user_info
         user_id: str = user_info.get("userId", "")
@@ -565,10 +573,12 @@ class DhlDeliveredParcelsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity)
 
     @property
     def native_value(self) -> int:
+        """Return the number of recently delivered parcels."""
         return len(self.coordinator.delivered)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
+        """Return details of each recently delivered parcel."""
         return {"parcels": self.coordinator.delivered}
 
 
@@ -591,6 +601,7 @@ class DhlLastUpdateSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
         coordinator: DhlCoordinator,
         user_info: dict[str, Any],
     ) -> None:
+        """Initialise the last-update diagnostic sensor."""
         super().__init__(coordinator)
         self._user_info = user_info
         user_id: str = user_info.get("userId", "")

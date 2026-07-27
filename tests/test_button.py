@@ -2,7 +2,6 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 
 from custom_components.dhl_nl.const import (

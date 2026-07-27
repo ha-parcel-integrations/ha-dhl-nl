@@ -25,6 +25,7 @@ class DhlAuthError(Exception):
     """Raised when the DHL login endpoint returns a non-200 status."""
 
     def __init__(self, status_code: int) -> None:
+        """Store the HTTP status code that triggered the auth error."""
         super().__init__(f"DHL authentication failed with status {status_code}")
         self.status_code = status_code
 
@@ -33,6 +34,7 @@ class DhlApiError(Exception):
     """Raised when a DHL API call returns a non-200 status."""
 
     def __init__(self, status_code: int) -> None:
+        """Store the HTTP status code that triggered the API error."""
         super().__init__(f"DHL API request failed with status {status_code}")
         self.status_code = status_code
 
@@ -53,6 +55,7 @@ class DhlApiClient:
             password: DHL account password.
             session: Dedicated aiohttp session with an isolated cookie jar,
                      ensuring multiple DHL accounts do not share auth cookies.
+
         """
         self._email = email
         self._password = password
@@ -78,6 +81,7 @@ class DhlApiClient:
                 distinct from an auth failure so callers never push the user
                 into reauth over a transient DHL hiccup.
             aiohttp.ClientError: On network-level failures.
+
         """
         payload = {"email": self._email, "password": self._password}
         headers = {"Content-Type": "application/json"}

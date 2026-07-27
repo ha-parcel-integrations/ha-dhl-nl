@@ -2,8 +2,6 @@
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
-import pytest
-
 from custom_components.dhl_nl.calendar import DhlDeliveriesCalendar
 from custom_components.dhl_nl.coordinator import normalize_parcel
 

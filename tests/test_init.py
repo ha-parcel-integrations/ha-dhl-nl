@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, patch
 
 import aiohttp
 import pytest
-
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 
