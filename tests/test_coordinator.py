@@ -15,8 +15,10 @@ from custom_components.dhl_nl.const import (
 from custom_components.dhl_nl.coordinator import (
     DhlCoordinator,
     DhlSentShipmentsCoordinator,
-    _extract_events,
     _refresh_interval,
+)
+from custom_components.dhl_nl.parcels import (
+    _extract_events,
     build_history,
     filter_active_parcels,
     filter_active_returns,
@@ -89,6 +91,33 @@ def test_other_intervention_still_maps_to_problem():
     """Unmapped INTERVENTION statuses still fall back to PROBLEM via category."""
     parcel = {"status": "INTERVENTION_PARCEL_DAMAGED", "category": "INTERVENTION"}
     assert map_parcel_status(parcel) == ParcelStatus.PROBLEM
+
+
+@pytest.mark.parametrize(
+    "status,category,expected",
+    [
+        # Out for delivery — the category only says IN_DELIVERY (IN_TRANSIT).
+        ("LOAD_VEHICLE", "IN_DELIVERY", ParcelStatus.OUT_FOR_DELIVERY),
+        ("PARCEL_INTO_FALLBACK", "IN_DELIVERY", ParcelStatus.OUT_FOR_DELIVERY),
+        # Ready for collection at a ServicePoint / depot.
+        ("DELIVERED_AT_PARCELSTATION", "UNDERWAY", ParcelStatus.AT_PICKUP_POINT),
+        ("AWAITING_RECEIVER_COLLECTION", "UNDERWAY", ParcelStatus.AT_PICKUP_POINT),
+        ("REMINDER_FOR_COLLECTION_SENT_SMS", "UNDERWAY", ParcelStatus.AT_PICKUP_POINT),
+        # Collected by the recipient — terminal.
+        ("SHIPMENT_COLLECTED", "UNDERWAY", ParcelStatus.DELIVERED),
+        ("COLLECTED_AT_PARCELSTATION", "UNDERWAY", ParcelStatus.DELIVERED),
+        # Returning — the category would mislabel these IN_TRANSIT or PROBLEM.
+        ("RETURNED_TO_SHIPPER", "UNDERWAY", ParcelStatus.RETURNING),
+        ("REFUSED_RETURN", "INTERVENTION", ParcelStatus.RETURNING),
+        ("RECEIVER_UNKNOWN_RETURN", "INTERVENTION", ParcelStatus.RETURNING),
+        ("STORAGE_PERIOD_ENDED_AT_PARCELSHOP", "UNDERWAY", ParcelStatus.RETURNING),
+        ("ON_ROUTE_TO_SHIPPER", "UNDERWAY", ParcelStatus.RETURNING),
+    ],
+)
+def test_granular_status_overrides_category(status, category, expected):
+    """Finer parcel-nl statuses take precedence over the coarse category —
+    without them, returns/pickups/out-for-delivery are mislabelled."""
+    assert map_parcel_status({"status": status, "category": category}) == expected
 
 
 def test_active_parcel_is_included():
