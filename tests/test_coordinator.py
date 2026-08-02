@@ -32,6 +32,13 @@ from custom_components.dhl_nl.parcels import (
     sort_parcels_by_ts,
 )
 
+from .payloads import (
+    history_parcel_sample,
+    parcel_sample,
+    shipment_sample,
+    track_trace,
+)
+
 
 def _mock_entry(
     filter_type: str = "days",
@@ -46,23 +53,6 @@ def _mock_entry(
         CONF_INCLUDE_HISTORY: include_history,
     }
     return entry
-
-
-def _parcel(
-    category: str,
-    is_return: bool = False,
-    moment: str | None = None,
-    barcode: str = "TEST123",
-) -> dict:
-    indication = (
-        {"indicationType": "MomentIndication", "moment": moment} if moment else None
-    )
-    return {
-        "barcode": barcode,
-        "category": category,
-        "isReturn": is_return,
-        "receivingTimeIndication": indication,
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -122,28 +112,28 @@ def test_granular_status_overrides_category(status, category, expected):
 
 
 def test_active_parcel_is_included():
-    assert filter_active_parcels([_parcel("IN_DELIVERY")]) != []
+    assert filter_active_parcels([parcel_sample("IN_DELIVERY")]) != []
 
 
 def test_delivered_parcel_is_excluded():
-    assert filter_active_parcels([_parcel("DELIVERED")]) == []
+    assert filter_active_parcels([parcel_sample("DELIVERED")]) == []
 
 
 def test_return_parcel_is_excluded():
-    assert filter_active_parcels([_parcel("IN_DELIVERY", is_return=True)]) == []
+    assert filter_active_parcels([parcel_sample("IN_DELIVERY", is_return=True)]) == []
 
 
 def test_all_active_categories_pass():
-    parcels = [_parcel(cat) for cat in ACTIVE_CATEGORIES]
+    parcels = [parcel_sample(cat) for cat in ACTIVE_CATEGORIES]
     assert len(filter_active_parcels(parcels)) == len(ACTIVE_CATEGORIES)
 
 
 def test_mixed_parcels_filtered_correctly():
     parcels = [
-        _parcel("IN_DELIVERY"),
-        _parcel("DELIVERED"),
-        _parcel("IN_DELIVERY", is_return=True),
-        _parcel("UNDERWAY"),
+        parcel_sample("IN_DELIVERY"),
+        parcel_sample("DELIVERED"),
+        parcel_sample("IN_DELIVERY", is_return=True),
+        parcel_sample("UNDERWAY"),
     ]
     result = filter_active_parcels(parcels)
     assert len(result) == 2
@@ -159,22 +149,22 @@ def test_empty_list_returns_empty():
 
 
 def test_delivered_parcel_is_included():
-    assert filter_delivered_parcels([_parcel("DELIVERED")]) != []
+    assert filter_delivered_parcels([parcel_sample("DELIVERED")]) != []
 
 
 def test_active_parcel_excluded_from_delivered():
-    assert filter_delivered_parcels([_parcel("IN_DELIVERY")]) == []
+    assert filter_delivered_parcels([parcel_sample("IN_DELIVERY")]) == []
 
 
 def test_return_parcel_excluded_from_delivered():
-    assert filter_delivered_parcels([_parcel("DELIVERED", is_return=True)]) == []
+    assert filter_delivered_parcels([parcel_sample("DELIVERED", is_return=True)]) == []
 
 
 def test_delivered_filters_only_non_return_delivered():
     parcels = [
-        _parcel("DELIVERED"),
-        _parcel("DELIVERED", is_return=True),
-        _parcel("IN_DELIVERY"),
+        parcel_sample("DELIVERED"),
+        parcel_sample("DELIVERED", is_return=True),
+        parcel_sample("IN_DELIVERY"),
     ]
     assert len(filter_delivered_parcels(parcels)) == 1
 
@@ -185,35 +175,35 @@ def test_delivered_filters_only_non_return_delivered():
 
 
 def test_active_return_is_included():
-    assert filter_active_returns([_parcel("UNDERWAY", is_return=True)]) != []
+    assert filter_active_returns([parcel_sample("UNDERWAY", is_return=True)]) != []
 
 
 def test_non_return_excluded_from_active_returns():
-    assert filter_active_returns([_parcel("UNDERWAY", is_return=False)]) == []
+    assert filter_active_returns([parcel_sample("UNDERWAY", is_return=False)]) == []
 
 
 def test_delivered_return_excluded_from_active_returns():
-    assert filter_active_returns([_parcel("DELIVERED", is_return=True)]) == []
+    assert filter_active_returns([parcel_sample("DELIVERED", is_return=True)]) == []
 
 
 def test_delivered_return_is_included():
-    assert filter_delivered_returns([_parcel("DELIVERED", is_return=True)]) != []
+    assert filter_delivered_returns([parcel_sample("DELIVERED", is_return=True)]) != []
 
 
 def test_non_return_excluded_from_delivered_returns():
-    assert filter_delivered_returns([_parcel("DELIVERED", is_return=False)]) == []
+    assert filter_delivered_returns([parcel_sample("DELIVERED", is_return=False)]) == []
 
 
 def test_active_return_excluded_from_delivered_returns():
-    assert filter_delivered_returns([_parcel("UNDERWAY", is_return=True)]) == []
+    assert filter_delivered_returns([parcel_sample("UNDERWAY", is_return=True)]) == []
 
 
 def test_mixed_parcels_split_correctly_between_incoming_and_returns():
     parcels = [
-        _parcel("IN_DELIVERY", barcode="incoming-active"),
-        _parcel("DELIVERED", barcode="incoming-delivered"),
-        _parcel("UNDERWAY", is_return=True, barcode="return-active"),
-        _parcel("DELIVERED", is_return=True, barcode="return-delivered"),
+        parcel_sample("IN_DELIVERY", barcode="incoming-active"),
+        parcel_sample("DELIVERED", barcode="incoming-delivered"),
+        parcel_sample("UNDERWAY", is_return=True, barcode="return-active"),
+        parcel_sample("DELIVERED", is_return=True, barcode="return-delivered"),
     ]
     assert [p["barcode"] for p in filter_active_parcels(parcels)] == ["incoming-active"]
     assert [p["barcode"] for p in filter_delivered_parcels(parcels)] == ["incoming-delivered"]
@@ -226,20 +216,16 @@ def test_mixed_parcels_split_correctly_between_incoming_and_returns():
 # ---------------------------------------------------------------------------
 
 
-def _shipment(category: str, shipment_type: str = "outgoing") -> dict:
-    return {"barcode": "SENT123", "category": category, "type": shipment_type}
-
-
 def test_active_outgoing_shipment_is_included():
-    assert filter_active_sent_shipments([_shipment("IN_DELIVERY")]) != []
+    assert filter_active_sent_shipments([shipment_sample("IN_DELIVERY")]) != []
 
 
 def test_delivered_shipment_is_excluded():
-    assert filter_active_sent_shipments([_shipment("DELIVERED")]) == []
+    assert filter_active_sent_shipments([shipment_sample("DELIVERED")]) == []
 
 
 def test_non_outgoing_type_is_excluded():
-    assert filter_active_sent_shipments([_shipment("IN_DELIVERY", shipment_type="incoming")]) == []
+    assert filter_active_sent_shipments([shipment_sample("IN_DELIVERY", shipment_type="incoming")]) == []
 
 
 # ---------------------------------------------------------------------------
@@ -248,15 +234,15 @@ def test_non_outgoing_type_is_excluded():
 
 
 def test_delivered_outgoing_shipment_is_included():
-    assert filter_delivered_sent_shipments([_shipment("DELIVERED")]) != []
+    assert filter_delivered_sent_shipments([shipment_sample("DELIVERED")]) != []
 
 
 def test_active_outgoing_shipment_excluded_from_delivered():
-    assert filter_delivered_sent_shipments([_shipment("IN_DELIVERY")]) == []
+    assert filter_delivered_sent_shipments([shipment_sample("IN_DELIVERY")]) == []
 
 
 def test_non_outgoing_type_excluded_from_delivered():
-    assert filter_delivered_sent_shipments([_shipment("DELIVERED", shipment_type="incoming")]) == []
+    assert filter_delivered_sent_shipments([shipment_sample("DELIVERED", shipment_type="incoming")]) == []
 
 
 # ---------------------------------------------------------------------------
@@ -267,9 +253,9 @@ def test_non_outgoing_type_excluded_from_delivered():
 async def test_sent_shipments_coordinator_populates_active_and_delivered(hass):
     client = MagicMock()
     client.async_get_sent_shipments = AsyncMock(return_value=[
-        _shipment("IN_DELIVERY"),
-        _shipment("DELIVERED"),
-        _shipment("IN_DELIVERY", shipment_type="incoming"),
+        shipment_sample("IN_DELIVERY"),
+        shipment_sample("DELIVERED"),
+        shipment_sample("IN_DELIVERY", shipment_type="incoming"),
     ])
 
     coordinator = DhlSentShipmentsCoordinator(hass, client, _mock_entry())
@@ -284,7 +270,7 @@ async def test_sent_shipments_coordinator_populates_active_and_delivered(hass):
 
 async def test_sent_shipments_coordinator_delivered_filter_applies(hass):
     old = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
-    shipment = _shipment("DELIVERED")
+    shipment = shipment_sample("DELIVERED")
     shipment["receivingTimeIndication"] = {"indicationType": "MomentIndication", "moment": old}
     client = MagicMock()
     client.async_get_sent_shipments = AsyncMock(return_value=[shipment])
@@ -304,8 +290,8 @@ async def test_delivered_filter_days_excludes_old_parcels(hass):
     old = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
     recent = (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()
     parcels = [
-        _parcel("DELIVERED", moment=old),
-        _parcel("DELIVERED", moment=recent),
+        parcel_sample("DELIVERED", moment=old),
+        parcel_sample("DELIVERED", moment=recent),
     ]
     coordinator = DhlCoordinator(hass, MagicMock(), _mock_entry("days", 7))
     result = coordinator._apply_delivered_filter(parcels)
@@ -314,7 +300,7 @@ async def test_delivered_filter_days_excludes_old_parcels(hass):
 
 
 async def test_delivered_filter_days_includes_parcel_without_date(hass):
-    parcels = [_parcel("DELIVERED")]
+    parcels = [parcel_sample("DELIVERED")]
     coordinator = DhlCoordinator(hass, MagicMock(), _mock_entry("days", 7))
     result = coordinator._apply_delivered_filter(parcels)
     assert len(result) == 1
@@ -322,7 +308,7 @@ async def test_delivered_filter_days_includes_parcel_without_date(hass):
 
 async def test_delivered_filter_days_all_recent(hass):
     recent = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
-    parcels = [_parcel("DELIVERED", moment=recent)] * 5
+    parcels = [parcel_sample("DELIVERED", moment=recent)] * 5
     coordinator = DhlCoordinator(hass, MagicMock(), _mock_entry("days", 7))
     assert len(coordinator._apply_delivered_filter(parcels)) == 5
 
@@ -333,14 +319,14 @@ async def test_delivered_filter_days_all_recent(hass):
 
 
 async def test_delivered_filter_parcels_limits_count(hass):
-    parcels = [_parcel("DELIVERED")] * 10
+    parcels = [parcel_sample("DELIVERED")] * 10
     coordinator = DhlCoordinator(hass, MagicMock(), _mock_entry("parcels", 3))
     result = coordinator._apply_delivered_filter(parcels)
     assert len(result) == 3
 
 
 async def test_delivered_filter_parcels_fewer_than_limit(hass):
-    parcels = [_parcel("DELIVERED")] * 2
+    parcels = [parcel_sample("DELIVERED")] * 2
     coordinator = DhlCoordinator(hass, MagicMock(), _mock_entry("parcels", 5))
     assert len(coordinator._apply_delivered_filter(parcels)) == 2
 
@@ -365,9 +351,9 @@ async def test_coordinator_raises_update_failed_on_api_error(hass):
 async def test_coordinator_returns_only_active_parcels(hass):
     client = MagicMock()
     client.async_get_parcels = AsyncMock(return_value=[
-        _parcel("IN_DELIVERY"),
-        _parcel("DELIVERED"),
-        _parcel("IN_DELIVERY", is_return=True),
+        parcel_sample("IN_DELIVERY"),
+        parcel_sample("DELIVERED"),
+        parcel_sample("IN_DELIVERY", is_return=True),
     ])
 
     coordinator = DhlCoordinator(hass, client, _mock_entry())
@@ -540,9 +526,9 @@ async def test_coordinator_populates_delivered(hass):
     recent = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
     client = MagicMock()
     client.async_get_parcels = AsyncMock(return_value=[
-        _parcel("IN_DELIVERY"),
-        _parcel("DELIVERED", moment=recent),
-        _parcel("DELIVERED", is_return=True, moment=recent),
+        parcel_sample("IN_DELIVERY"),
+        parcel_sample("DELIVERED", moment=recent),
+        parcel_sample("DELIVERED", is_return=True, moment=recent),
     ])
 
     coordinator = DhlCoordinator(hass, client, _mock_entry("days", 7))
@@ -556,9 +542,9 @@ async def test_coordinator_populates_returning_and_delivered_outgoing(hass):
     recent = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
     client = MagicMock()
     client.async_get_parcels = AsyncMock(return_value=[
-        _parcel("IN_DELIVERY", barcode="incoming"),
-        _parcel("UNDERWAY", is_return=True, barcode="return-underway"),
-        _parcel("DELIVERED", is_return=True, moment=recent, barcode="return-delivered"),
+        parcel_sample("IN_DELIVERY", barcode="incoming"),
+        parcel_sample("UNDERWAY", is_return=True, barcode="return-underway"),
+        parcel_sample("DELIVERED", is_return=True, moment=recent, barcode="return-delivered"),
     ])
 
     coordinator = DhlCoordinator(hass, client, _mock_entry("days", 7))
@@ -578,7 +564,7 @@ async def test_coordinator_populates_returning_and_delivered_outgoing(hass):
 
 async def test_returning_and_delivered_outgoing_empty_without_returns(hass):
     client = MagicMock()
-    client.async_get_parcels = AsyncMock(return_value=[_parcel("IN_DELIVERY")])
+    client.async_get_parcels = AsyncMock(return_value=[parcel_sample("IN_DELIVERY")])
 
     coordinator = DhlCoordinator(hass, client, _mock_entry())
     await coordinator._async_update_data()
@@ -596,7 +582,7 @@ async def test_no_outgoing_events_on_first_refresh(hass):
     """The first refresh seeds outgoing state silently — no outgoing events."""
     client = MagicMock()
     client.async_get_parcels = AsyncMock(return_value=[
-        _parcel("UNDERWAY", is_return=True, barcode="R"),
+        parcel_sample("UNDERWAY", is_return=True, barcode="R"),
     ])
 
     fired: list = []
@@ -614,8 +600,8 @@ async def test_outgoing_status_changed_when_return_status_transitions(hass):
     """A return whose active status changes fires outgoing_parcel_status_changed."""
     client = MagicMock()
     client.async_get_parcels = AsyncMock(side_effect=[
-        [_parcel("DATA_RECEIVED", is_return=True, barcode="R")],
-        [_parcel("UNDERWAY", is_return=True, barcode="R")],
+        [parcel_sample("DATA_RECEIVED", is_return=True, barcode="R")],
+        [parcel_sample("UNDERWAY", is_return=True, barcode="R")],
     ])
 
     changed: list = []
@@ -641,8 +627,8 @@ async def test_outgoing_delivered_when_return_is_delivered(hass):
     recent = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
     client = MagicMock()
     client.async_get_parcels = AsyncMock(side_effect=[
-        [_parcel("UNDERWAY", is_return=True, barcode="R")],
-        [_parcel("DELIVERED", is_return=True, moment=recent, barcode="R")],
+        [parcel_sample("UNDERWAY", is_return=True, barcode="R")],
+        [parcel_sample("DELIVERED", is_return=True, moment=recent, barcode="R")],
     ])
 
     delivered: list = []
@@ -669,7 +655,7 @@ async def test_no_outgoing_event_for_already_delivered_return(hass):
     recent = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
     client = MagicMock()
     client.async_get_parcels = AsyncMock(return_value=[
-        _parcel("DELIVERED", is_return=True, moment=recent, barcode="R"),
+        parcel_sample("DELIVERED", is_return=True, moment=recent, barcode="R"),
     ])
 
     fired: list = []
@@ -693,8 +679,8 @@ async def test_no_events_on_first_refresh(hass):
     """The first refresh seeds known state silently — no events."""
     client = MagicMock()
     client.async_get_parcels = AsyncMock(return_value=[
-        _parcel("IN_DELIVERY", barcode="A"),
-        _parcel("IN_DELIVERY", barcode="B"),
+        parcel_sample("IN_DELIVERY", barcode="A"),
+        parcel_sample("IN_DELIVERY", barcode="B"),
     ])
 
     fired: list = []
@@ -712,8 +698,8 @@ async def test_registered_event_for_new_barcodes(hass):
     """A barcode that appears for the first time after seeding fires registered."""
     client = MagicMock()
     client.async_get_parcels = AsyncMock(side_effect=[
-        [_parcel("IN_DELIVERY", barcode="A")],
-        [_parcel("IN_DELIVERY", barcode="A"), _parcel("IN_DELIVERY", barcode="B")],
+        [parcel_sample("IN_DELIVERY", barcode="A")],
+        [parcel_sample("IN_DELIVERY", barcode="A"), parcel_sample("IN_DELIVERY", barcode="B")],
     ])
 
     registered: list = []
@@ -740,8 +726,8 @@ async def test_delivered_event_when_parcel_transitions_to_delivered(hass):
     recent = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
     client = MagicMock()
     client.async_get_parcels = AsyncMock(side_effect=[
-        [_parcel("IN_DELIVERY", barcode="A")],
-        [_parcel("DELIVERED", barcode="A", moment=recent)],
+        [parcel_sample("IN_DELIVERY", barcode="A")],
+        [parcel_sample("DELIVERED", barcode="A", moment=recent)],
     ])
 
     delivered: list = []
@@ -769,10 +755,10 @@ async def test_no_events_for_new_already_delivered_parcel(hass):
     recent = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
     client = MagicMock()
     client.async_get_parcels = AsyncMock(side_effect=[
-        [_parcel("IN_DELIVERY", barcode="A")],
+        [parcel_sample("IN_DELIVERY", barcode="A")],
         [
-            _parcel("IN_DELIVERY", barcode="A"),
-            _parcel("DELIVERED", barcode="B", moment=recent),
+            parcel_sample("IN_DELIVERY", barcode="A"),
+            parcel_sample("DELIVERED", barcode="B", moment=recent),
         ],
     ])
 
@@ -792,11 +778,11 @@ async def test_status_changed_event_when_active_status_transitions(hass):
     """When an active parcel changes from one IN_TRANSIT status to another."""
     from custom_components.dhl_nl.const import ParcelStatus
 
-    p1 = _parcel("IN_DELIVERY", barcode="A")
+    p1 = parcel_sample("IN_DELIVERY", barcode="A")
     p1["status"] = "DATA_RECEIVED"  # raw status — maps to REGISTERED via fallback
     p1["category"] = "DATA_RECEIVED"
 
-    p2 = _parcel("IN_DELIVERY", barcode="A")
+    p2 = parcel_sample("IN_DELIVERY", barcode="A")
     p2["status"] = "OUT_FOR_DELIVERY"  # maps to OUT_FOR_DELIVERY
     p2["category"] = "IN_DELIVERY"
 
@@ -828,8 +814,8 @@ async def test_delivery_time_changed_fires_when_planned_time_appears(hass):
     """A barcode that gains a planned_from value fires delivery_time_changed."""
     client = MagicMock()
     client.async_get_parcels = AsyncMock(side_effect=[
-        [_parcel("IN_DELIVERY", barcode="A")],
-        [_parcel("IN_DELIVERY", barcode="A", moment="2026-06-27T10:00:00+02:00")],
+        [parcel_sample("IN_DELIVERY", barcode="A")],
+        [parcel_sample("IN_DELIVERY", barcode="A", moment="2026-06-27T10:00:00+02:00")],
     ])
 
     changed: list = []
@@ -852,8 +838,8 @@ async def test_delivery_time_changed_fires_when_planned_time_shifts(hass):
     """A barcode whose planned_from changes to a new value fires the event."""
     client = MagicMock()
     client.async_get_parcels = AsyncMock(side_effect=[
-        [_parcel("IN_DELIVERY", barcode="A", moment="2026-06-27T10:00:00+02:00")],
-        [_parcel("IN_DELIVERY", barcode="A", moment="2026-06-27T14:00:00+02:00")],
+        [parcel_sample("IN_DELIVERY", barcode="A", moment="2026-06-27T10:00:00+02:00")],
+        [parcel_sample("IN_DELIVERY", barcode="A", moment="2026-06-27T14:00:00+02:00")],
     ])
 
     changed: list = []
@@ -875,8 +861,8 @@ async def test_no_delivery_time_changed_event_when_planned_time_clears(hass):
     """Value → null transitions are silent (don't page users on lost ETAs)."""
     client = MagicMock()
     client.async_get_parcels = AsyncMock(side_effect=[
-        [_parcel("IN_DELIVERY", barcode="A", moment="2026-06-27T10:00:00+02:00")],
-        [_parcel("IN_DELIVERY", barcode="A")],
+        [parcel_sample("IN_DELIVERY", barcode="A", moment="2026-06-27T10:00:00+02:00")],
+        [parcel_sample("IN_DELIVERY", barcode="A")],
     ])
 
     changed: list = []
@@ -896,8 +882,8 @@ async def test_no_delivery_time_changed_event_when_planned_time_unchanged(hass):
     """An unchanged planned_from does not fire the event."""
     client = MagicMock()
     client.async_get_parcels = AsyncMock(side_effect=[
-        [_parcel("IN_DELIVERY", barcode="A", moment="2026-06-27T10:00:00+02:00")],
-        [_parcel("IN_DELIVERY", barcode="A", moment="2026-06-27T10:00:00+02:00")],
+        [parcel_sample("IN_DELIVERY", barcode="A", moment="2026-06-27T10:00:00+02:00")],
+        [parcel_sample("IN_DELIVERY", barcode="A", moment="2026-06-27T10:00:00+02:00")],
     ])
 
     changed: list = []
@@ -1022,34 +1008,8 @@ def test_map_event_status_none_for_unmapped(caplog):
 # ---------------------------------------------------------------------------
 
 
-_TRACK_TRACE = [
-    {
-        "id": "uuid-1",
-        "barcode": "JX1",
-        "view": {
-            "phases": [
-                # DHL returns phases newest-first.
-                {"phase": "DELIVERED", "events": [
-                    {"timestamp": "2026-06-24T17:23:13Z", "key": "DELIVERED", "exception": False},
-                ]},
-                {"phase": "IN_DELIVERY", "events": [
-                    {"timestamp": "2026-06-24T15:17:49Z", "key": "OUT_FOR_DELIVERY", "exception": False},
-                ]},
-                {"phase": "UNDERWAY", "events": [
-                    {"timestamp": "2026-06-24T12:18:34Z", "key": "PARCEL_ARRIVED_AT_LOCAL_DEPOT", "exception": False},
-                    {"timestamp": "2026-06-24T02:00:00Z", "key": "PARCEL_SORTED_AT_HUB", "exception": False},
-                ]},
-                {"phase": "DATA_RECEIVED", "events": [
-                    {"timestamp": "2026-06-23T11:05:01Z", "key": "PRENOTIFICATION_RECEIVED", "exception": False},
-                ]},
-            ],
-        },
-    }
-]
-
-
 def test_extract_events_flattens_phases_with_phase_tag():
-    pairs = _extract_events(_TRACK_TRACE)
+    pairs = _extract_events(track_trace())
     assert len(pairs) == 5
     # Each event carries its parent phase.
     assert all(phase for _, phase in pairs)
@@ -1063,7 +1023,7 @@ def test_extract_events_empty_for_falsy_or_shapeless():
 
 
 def test_build_history_orders_oldest_first_and_maps():
-    history = build_history(_TRACK_TRACE)
+    history = build_history(track_trace())
     assert [e["status"] for e in history] == [
         ParcelStatus.REGISTERED,
         ParcelStatus.IN_TRANSIT,
@@ -1089,7 +1049,7 @@ def test_build_history_caps_to_max_events():
 
 
 def test_build_history_respects_custom_cap():
-    assert len(build_history(_TRACK_TRACE, max_events=2)) == 2
+    assert len(build_history(track_trace(), max_events=2)) == 2
 
 
 def test_build_history_skips_events_without_timestamp():
@@ -1122,12 +1082,12 @@ def test_build_history_handles_naive_and_unparseable_timestamps():
 
 
 def test_normalize_parcel_history_defaults_to_none():
-    assert normalize_parcel(_parcel("IN_DELIVERY"))["history"] is None
+    assert normalize_parcel(parcel_sample("IN_DELIVERY"))["history"] is None
 
 
 def test_normalize_parcel_history_passes_through_top_level():
     events = [{"timestamp": "2026-06-24T17:23:13Z", "status": "delivered", "raw_status": "DELIVERED"}]
-    normalized = normalize_parcel(_parcel("DELIVERED"), history=events)
+    normalized = normalize_parcel(parcel_sample("DELIVERED"), history=events)
     assert normalized["history"] == events
     # Top-level so it survives the aggregator's strip_raw(); not under raw.
     assert "history" not in normalized["raw"]
@@ -1138,22 +1098,12 @@ def test_normalize_parcel_history_passes_through_top_level():
 # ---------------------------------------------------------------------------
 
 
-def _hist_parcel(barcode: str = "JX1", status: str = "OUT_FOR_DELIVERY") -> dict:
-    return {
-        "barcode": barcode,
-        "parcelId": "uuid-1",
-        "status": status,
-        "category": "IN_DELIVERY",
-        "receiver": {"address": {"postalCode": "1234 AB"}},
-    }
-
-
 async def test_enrich_history_fetches_and_caches_when_option_on(hass):
     client = MagicMock()
-    client.async_get_track_trace = AsyncMock(return_value=_TRACK_TRACE)
+    client.async_get_track_trace = AsyncMock(return_value=track_trace())
     coordinator = DhlCoordinator(hass, client, _mock_entry(include_history=True))
 
-    await coordinator._enrich_history([_hist_parcel()])
+    await coordinator._enrich_history([history_parcel_sample()])
 
     # Postcode is whitespace-stripped; uuid + barcode passed through.
     client.async_get_track_trace.assert_awaited_once_with("JX1", "1234AB", "uuid-1")
@@ -1164,10 +1114,10 @@ async def test_enrich_history_fetches_and_caches_when_option_on(hass):
 
 async def test_enrich_history_noop_when_option_off(hass):
     client = MagicMock()
-    client.async_get_track_trace = AsyncMock(return_value=_TRACK_TRACE)
+    client.async_get_track_trace = AsyncMock(return_value=track_trace())
     coordinator = DhlCoordinator(hass, client, _mock_entry(include_history=False))
 
-    await coordinator._enrich_history([_hist_parcel()])
+    await coordinator._enrich_history([history_parcel_sample()])
 
     client.async_get_track_trace.assert_not_called()
     assert coordinator._history_cache == {}
@@ -1175,22 +1125,22 @@ async def test_enrich_history_noop_when_option_off(hass):
 
 async def test_enrich_history_skips_refetch_when_status_unchanged(hass):
     client = MagicMock()
-    client.async_get_track_trace = AsyncMock(return_value=_TRACK_TRACE)
+    client.async_get_track_trace = AsyncMock(return_value=track_trace())
     coordinator = DhlCoordinator(hass, client, _mock_entry(include_history=True))
     coordinator._history_cache = {"JX1": {"history": [], "_raw_status": "OUT_FOR_DELIVERY"}}
 
-    await coordinator._enrich_history([_hist_parcel(status="OUT_FOR_DELIVERY")])
+    await coordinator._enrich_history([history_parcel_sample(status="OUT_FOR_DELIVERY")])
 
     client.async_get_track_trace.assert_not_called()
 
 
 async def test_enrich_history_refetches_on_status_change(hass):
     client = MagicMock()
-    client.async_get_track_trace = AsyncMock(return_value=_TRACK_TRACE)
+    client.async_get_track_trace = AsyncMock(return_value=track_trace())
     coordinator = DhlCoordinator(hass, client, _mock_entry(include_history=True))
     coordinator._history_cache = {"JX1": {"history": [], "_raw_status": "PARCEL_SORTED_AT_HUB"}}
 
-    await coordinator._enrich_history([_hist_parcel(status="OUT_FOR_DELIVERY")])
+    await coordinator._enrich_history([history_parcel_sample(status="OUT_FOR_DELIVERY")])
 
     client.async_get_track_trace.assert_awaited_once()
     assert coordinator._history_cache["JX1"]["_raw_status"] == "OUT_FOR_DELIVERY"
@@ -1198,7 +1148,7 @@ async def test_enrich_history_refetches_on_status_change(hass):
 
 async def test_enrich_history_skips_parcel_without_postcode_or_uuid(hass):
     client = MagicMock()
-    client.async_get_track_trace = AsyncMock(return_value=_TRACK_TRACE)
+    client.async_get_track_trace = AsyncMock(return_value=track_trace())
     coordinator = DhlCoordinator(hass, client, _mock_entry(include_history=True))
 
     no_postcode = {"barcode": "JX2", "parcelId": "u", "status": "X", "receiver": {"address": {}}}
@@ -1214,7 +1164,7 @@ async def test_enrich_history_best_effort_leaves_cache_on_none(hass):
     client.async_get_track_trace = AsyncMock(return_value=None)
     coordinator = DhlCoordinator(hass, client, _mock_entry(include_history=True))
 
-    await coordinator._enrich_history([_hist_parcel()])
+    await coordinator._enrich_history([history_parcel_sample()])
 
     # A None (failed) response must not write a bogus cache entry.
     assert coordinator._history_cache == {}

@@ -20,6 +20,13 @@ from custom_components.dhl_nl.sensor import (
     DhlSentShipmentsSensor,
 )
 
+from .payloads import (
+    delivered_sample,
+    detail_sample,
+    return_sample,
+    sent_shipment_sample,
+)
+
 USER_INFO = {"userId": "user123", "email": "test@example.com"}
 
 
@@ -46,14 +53,9 @@ def _parcel(
     indication: dict | None = None,
     category: str = "IN_DELIVERY",
 ) -> dict:
-    return normalize_parcel({
-        "barcode": barcode,
-        "status": status,
-        "category": category,
-        "destination": {"locationType": location_type, "name": "DHL ServicePoint"},
-        "sender": {"name": "Example Sender"},
-        "receivingTimeIndication": indication,
-    })
+    return normalize_parcel(
+        detail_sample(barcode, status, location_type, indication, category)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -230,14 +232,7 @@ def test_pickup_pending_zero_when_no_parcels():
 
 
 def _delivered_parcel(barcode: str = "DEL123") -> dict:
-    return normalize_parcel({
-        "barcode": barcode,
-        "category": "DELIVERED",
-        "isReturn": False,
-        "status": "DELIVERED",
-        "sender": {"name": "Test Sender"},
-        "receivingTimeIndication": {"indicationType": "MomentIndication", "moment": "2026-05-30T14:00:00Z"},
-    })
+    return normalize_parcel(delivered_sample(barcode))
 
 
 def test_delivered_sensor_count_matches_coordinator_delivered():
@@ -268,14 +263,7 @@ def test_delivered_sensor_attributes_include_sender():
 
 
 def test_delivered_sensor_attributes_handle_missing_sender():
-    parcel = normalize_parcel({
-        "barcode": "DEL123",
-        "category": "DELIVERED",
-        "isReturn": False,
-        "status": "DELIVERED",
-        "sender": None,
-        "receivingTimeIndication": {"indicationType": "MomentIndication", "moment": "2026-05-30T14:00:00Z"},
-    })
+    parcel = normalize_parcel(delivered_sample(sender_name=None))
     sensor = DhlDeliveredParcelsSensor(_make_coordinator([], [parcel]), USER_INFO)
     attrs = sensor.extra_state_attributes
     assert attrs["parcels"][0]["sender"] is None
@@ -288,22 +276,11 @@ def test_delivered_sensor_attributes_handle_missing_sender():
 
 
 def _return_parcel(barcode: str = "RET123", category: str = "UNDERWAY") -> dict:
-    return normalize_parcel({
-        "barcode": barcode,
-        "category": category,
-        "isReturn": True,
-        "status": "PARCEL_READY_FOR_RETURN_TO_HUB",
-        "sender": {"name": "Test User"},
-        "receiver": {"name": "AE-RTN-NL"},
-    })
+    return normalize_parcel(return_sample(barcode, category))
 
 
 def _sent_shipment(barcode: str = "SENT123") -> dict:
-    return normalize_parcel({
-        "barcode": barcode,
-        "category": "IN_DELIVERY",
-        "sender": {"name": "Test User"},
-    })
+    return normalize_parcel(sent_shipment_sample(barcode))
 
 
 def _make_sent_coordinator(data=None, delivered=None) -> MagicMock:
