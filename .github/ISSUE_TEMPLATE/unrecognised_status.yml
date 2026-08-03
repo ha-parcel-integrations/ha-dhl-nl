@@ -32,3 +32,18 @@ body:
     attributes:
       label: Home Assistant version
       placeholder: "e.g. 2026.7.0"
+  - type: markdown
+    attributes:
+      value: |
+        ### 💡 Even better: attach a diagnostics file
+
+        A diagnostics download shows us the exact payload behind the warning —
+        usually all we need to fix the mapping, with no back-and-forth.
+
+        1. In Home Assistant, open **Settings → Devices & services**.
+        2. Open this integration, then click the **⋮** (three dots) on its entry.
+        3. Choose **Download diagnostics**.
+        4. Drag the downloaded file onto this issue to attach it.
+
+        Home Assistant redacts the file before download — names, addresses and
+        tracking numbers are removed, while the status codes we need are kept.
