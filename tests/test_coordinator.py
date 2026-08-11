@@ -7,9 +7,11 @@ import pytest
 from custom_components.dhl_nl.api import DhlApiError
 from custom_components.dhl_nl.const import (
     ACTIVE_CATEGORIES,
+    CAPABILITIES,
     CONF_DELIVERED_FILTER_AMOUNT,
     CONF_DELIVERED_FILTER_TYPE,
     CONF_INCLUDE_HISTORY,
+    KNOWN_CAPABILITIES,
     ParcelStatus,
 )
 from custom_components.dhl_nl.coordinator import (
@@ -462,6 +464,17 @@ def test_normalize_always_carries_none_weight_and_dimensions_on_dhl():
     result = normalize_parcel(parcel)
     assert "weight" in result and result["weight"] is None
     assert "dimensions" in result and result["dimensions"] is None
+
+
+def test_capabilities_are_known_values():
+    """A typo here would silently misreport this carrier on the docs site."""
+    assert CAPABILITIES <= KNOWN_CAPABILITIES
+
+
+def test_capabilities_omit_weight_and_dimensions():
+    """DHL never exposes these — CAPABILITIES must not claim otherwise."""
+    assert "weight" not in CAPABILITIES
+    assert "dimensions" not in CAPABILITIES
 
 
 def test_normalize_constructs_tracking_url():

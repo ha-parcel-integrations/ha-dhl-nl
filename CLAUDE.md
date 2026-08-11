@@ -70,7 +70,9 @@ entry. Runtime-only; the tests don't catch a regression here.
   per-parcel `history`) out of long-term tables. Not slimming
   `extra_state_attributes` further is deliberate.
 - **`receiver`** is populated; **`weight`/`dimensions` stay `None`** (consumer API
-  omits them) but the keys exist for cross-carrier parity.
+  omits them) but the keys exist for cross-carrier parity. Reflected in
+  `const.py`'s `CAPABILITIES` (feeds the docs site's comparison table) — keep
+  the two in agreement if that ever changes.
 - Unmapped statuses log once per distinct value with an `issues/new` link
   (`_NEW_ISSUE_URL`); one-shot sets `_unmapped_statuses_logged` /
   `_unmapped_event_keys_logged`. The `en_route` / `awaiting_pickup` sensors split
