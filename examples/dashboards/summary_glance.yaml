@@ -9,10 +9,10 @@ show_icon: true
 columns: 4
 entities:
   - entity: sensor.dhl_incoming_parcels
-    name: Onderweg
+    name: In transit
   - entity: sensor.dhl_awaiting_pickup
-    name: Klaar
+    name: Ready
   - entity: sensor.dhl_en_route_to_service_point
-    name: Naar SP
+    name: To SP
   - entity: sensor.dhl_delivered_parcels
     name: Recent

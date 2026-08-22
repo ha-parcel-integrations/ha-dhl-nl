@@ -4,10 +4,10 @@
 # "tomorrow at 14:00" automatically.
 
 type: entities
-title: Eerstvolgende bezorging
+title: Next delivery
 entities:
   - entity: sensor.dhl_next_delivery
-    name: Verwacht
+    name: Expected
     secondary_info: last-updated
   - type: attribute
     entity: sensor.dhl_next_delivery
@@ -16,4 +16,4 @@ entities:
   - type: attribute
     entity: sensor.dhl_next_delivery
     attribute: sender
-    name: Afzender
+    name: Sender

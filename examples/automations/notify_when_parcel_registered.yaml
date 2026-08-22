@@ -15,14 +15,14 @@ triggers:
 actions:
   - action: notify.mobile_app
     data:
-      title: "Pakket onderweg"
+      title: "Parcel on the way"
       message: >-
-        {{ trigger.event.data.sender }} – verwacht
+        {{ trigger.event.data.sender }} – expected
         {% if trigger.event.data.planned_from %}
         {{ as_timestamp(trigger.event.data.planned_from)
            | timestamp_custom('%a %-d %b') }}
         {% else %}
-        binnenkort
+        soon
         {% endif %}
       data:
         clickAction: "{{ trigger.event.data.url }}"

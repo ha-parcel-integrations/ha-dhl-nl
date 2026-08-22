@@ -18,7 +18,7 @@ you act in one of these areas:
 | consider "fixing" a lint/pattern the skill flags (poll interval, inline client, sync requests) | *Deliberate skill divergences* — likely intentional, don't re-flag |
 | commit, bump, tag, release, or write release notes; add a feature without a test | *Workflow / Commits / Versioning / Testing* |
 
-**API mechanics live in `carrier-research/api/dhl-nl/` (private research repo)** — the parcels /
+**API mechanics live in `carrier-research/dhl-nl/api/` (private research repo)** — the parcels /
 sent-shipments / track-trace endpoints, their params and content types, and the
 DHL status/category → `ParcelStatus` vocabulary. Do not duplicate them here; this
 file is HA-integration decisions only.

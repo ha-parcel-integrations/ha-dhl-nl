@@ -17,9 +17,9 @@ triggers:
 actions:
   - action: notify.mobile_app
     data:
-      title: "Pakket klaar bij ServicePoint"
+      title: "Parcel ready at ServicePoint"
       message: >-
-        {{ trigger.event.data.sender }} ligt klaar bij
-        {{ trigger.event.data.pickup_point or 'het ServicePoint' }}.
+        {{ trigger.event.data.sender }} is ready for pickup at
+        {{ trigger.event.data.pickup_point or 'the ServicePoint' }}.
       data:
         clickAction: "{{ trigger.event.data.url }}"

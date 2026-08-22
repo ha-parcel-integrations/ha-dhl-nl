@@ -19,7 +19,7 @@ actions:
     data:
       entity_id: media_player.living_room
       message: >-
-        Pakket onderweg, verwacht tussen
-        {{ now().strftime('%H:%M') }} en
+        Parcel on the way, expected between
+        {{ now().strftime('%H:%M') }} and
         {{ (as_datetime(states('sensor.dhl_next_delivery'))
             + timedelta(hours=2)).strftime('%H:%M') }}.

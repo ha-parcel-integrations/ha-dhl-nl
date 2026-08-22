@@ -12,20 +12,20 @@ conditions:
     above: 0
 card:
   type: markdown
-  title: DHL pakketten
+  title: DHL parcels
   content: >-
     {% set labels = {
-      'registered': 'aangemeld',
-      'in_transit': 'onderweg',
-      'out_for_delivery': 'bezorging vandaag',
-      'at_pickup_point': 'klaar bij ServicePoint',
-      'delivered': 'bezorgd',
-      'problem': 'probleem',
-      'returning': 'retour naar afzender',
-      'unknown': 'status onbekend'
+      'registered': 'registered',
+      'in_transit': 'in transit',
+      'out_for_delivery': 'delivery today',
+      'at_pickup_point': 'ready at ServicePoint',
+      'delivered': 'delivered',
+      'problem': 'problem',
+      'returning': 'returning to sender',
+      'unknown': 'status unknown'
     } %}
     {% for p in state_attr('sensor.dhl_incoming_parcels', 'parcels') or [] -%}
-    {% set sender = p.sender or 'Onbekende afzender' -%}
+    {% set sender = p.sender or 'Unknown sender' -%}
     {% set status = labels.get(p.status, p.status) -%}
     {%- if p.url %}
     - [{{ sender }}]({{ p.url }}) — {{ status }}

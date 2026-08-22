@@ -16,11 +16,11 @@ triggers:
 actions:
   - action: notify.mobile_app
     data:
-      title: "Nieuwe DHL-levertijd"
+      title: "New DHL delivery time"
       message: >-
         {{ trigger.event.data.sender }} – {{ trigger.event.data.barcode }}:
-        verwacht
+        expected
         {{ as_timestamp(trigger.event.data.new_planned_from) | timestamp_custom('%a %d %b %H:%M', true)
-           if trigger.event.data.new_planned_from else 'onbekend' }}
+           if trigger.event.data.new_planned_from else 'unknown' }}
       data:
         clickAction: "{{ trigger.event.data.url }}"

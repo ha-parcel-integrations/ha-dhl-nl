@@ -14,9 +14,9 @@ triggers:
 actions:
   - action: notify.mobile_app
     data:
-      title: "Retour bezorgd"
+      title: "Return delivered"
       message: >-
-        {{ trigger.event.data.receiver or trigger.event.data.barcode }} is
-        aangekomen.
+        {{ trigger.event.data.receiver or trigger.event.data.barcode }} has
+        arrived.
       data:
         clickAction: "{{ trigger.event.data.url }}"
