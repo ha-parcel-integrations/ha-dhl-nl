@@ -93,6 +93,11 @@ def test_other_intervention_still_maps_to_problem():
         ("PARCEL_INTO_FALLBACK", "IN_DELIVERY", ParcelStatus.OUT_FOR_DELIVERY),
         # Ready for collection at a ServicePoint / depot.
         ("DELIVERED_AT_PARCELSTATION", "UNDERWAY", ParcelStatus.AT_PICKUP_POINT),
+        (
+            "NOTIFICATION_FOR_PARCELSTATION_COLLECTION_HAS_BEEN_SENT",
+            "IN_DELIVERY",
+            ParcelStatus.AT_PICKUP_POINT,
+        ),
         ("AWAITING_RECEIVER_COLLECTION", "UNDERWAY", ParcelStatus.AT_PICKUP_POINT),
         ("REMINDER_FOR_COLLECTION_SENT_SMS", "UNDERWAY", ParcelStatus.AT_PICKUP_POINT),
         # Collected by the recipient — terminal.
@@ -111,6 +116,26 @@ def test_granular_status_overrides_category(status, category, expected):
     without them, returns/pickups/out-for-delivery are mislabelled.
     """
     assert map_parcel_status({"status": status, "category": category}) == expected
+
+
+def test_unmapped_status_warns_even_when_category_fallback_succeeds(caplog):
+    """An unmapped status must not hide behind a coincidentally-correct category.
+
+    Regression for issue #11: a locker notification status fell through to
+    IN_DELIVERY -> IN_TRANSIT with no log line, so the wrong-but-plausible
+    result went unnoticed until a user compared against the DHL app.
+    """
+    parcel = {"status": "SOME_NEW_LOCKER_STATUS", "category": "IN_DELIVERY"}
+    assert map_parcel_status(parcel) == ParcelStatus.IN_TRANSIT
+    assert "SOME_NEW_LOCKER_STATUS" in caplog.text
+    assert "issues/new" in caplog.text
+
+
+def test_fully_unmapped_status_returns_unknown_and_warns(caplog):
+    parcel = {"status": "WARP_DRIVE_ENGAGED", "category": "ZZTOP"}
+    assert map_parcel_status(parcel) == ParcelStatus.UNKNOWN
+    assert "WARP_DRIVE_ENGAGED" in caplog.text
+    assert "issues/new" in caplog.text
 
 
 def test_active_parcel_is_included():
@@ -1002,6 +1027,14 @@ def test_map_event_status_falls_back_to_phase():
     assert map_event_status("PARCEL_SORTED_AT_HUB", "UNDERWAY") == ParcelStatus.IN_TRANSIT
     assert map_event_status("PRENOTIFICATION_RECEIVED", "DATA_RECEIVED") == ParcelStatus.REGISTERED
     assert map_event_status("DELIVERED", "DELIVERED") == ParcelStatus.DELIVERED
+
+
+def test_map_event_status_warns_even_when_phase_fallback_succeeds(caplog):
+    # Distinct key from test_map_event_status_falls_back_to_phase — the
+    # one-shot log guard is process-global, reusing a key would suppress it.
+    assert map_event_status("PARCEL_LEFT_HUB", "UNDERWAY") == ParcelStatus.IN_TRANSIT
+    assert "PARCEL_LEFT_HUB" in caplog.text
+    assert "issues/new" in caplog.text
 
 
 def test_map_event_status_pickup_point_key():

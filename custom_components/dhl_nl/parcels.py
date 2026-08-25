@@ -43,6 +43,9 @@ _STATUS_MAP: dict[str, ParcelStatus] = {
     "PARCEL_WILL_BE_DELIVERED_SOON": ParcelStatus.OUT_FOR_DELIVERY,
     # --- Ready for the recipient to collect (ServicePoint / locker / depot) ---
     STATUS_AT_SERVICE_POINT: ParcelStatus.AT_PICKUP_POINT,
+    # Locker (ParcelStation) sibling of STATUS_AT_SERVICE_POINT — same
+    # "arrived, recipient notified" event, different destination type.
+    "NOTIFICATION_FOR_PARCELSTATION_COLLECTION_HAS_BEEN_SENT": ParcelStatus.AT_PICKUP_POINT,
     "AWAITING_RECEIVER_COLLECTION": ParcelStatus.AT_PICKUP_POINT,
     "CLOSED_AWAITING_COLLECTION": ParcelStatus.AT_PICKUP_POINT,
     "DELIVERED_AT_ACCESSPOINT": ParcelStatus.AT_PICKUP_POINT,
@@ -175,21 +178,25 @@ def map_parcel_status(parcel: dict) -> ParcelStatus:
 
     if raw_status in _STATUS_MAP:
         return _STATUS_MAP[raw_status]
-    if raw_category in _CATEGORY_MAP:
-        return _CATEGORY_MAP[raw_category]
 
+    # raw_status itself is unmapped — per the parcel contract this always
+    # gets a one-shot warning, even when the category fallback below still
+    # yields a plausible result. Without this, an unmapped status hides
+    # behind a coincidentally-correct category and is never reported.
+    result = _CATEGORY_MAP.get(raw_category, ParcelStatus.UNKNOWN)
     key = (raw_status, raw_category)
     if key not in _unmapped_statuses_logged:
         _unmapped_statuses_logged.add(key)
         _LOGGER.warning(
             "Unrecognised DHL status — help us map it. Open an issue and "
             "paste this line: %s\n  [parcel] status=%s category=%s "
-            "→ reported as 'unknown'",
+            "→ reported as '%s'",
             _NEW_ISSUE_URL,
             raw_status,
             raw_category,
+            result,
         )
-    return ParcelStatus.UNKNOWN
+    return result
 
 
 def map_event_status(
@@ -205,21 +212,24 @@ def map_event_status(
     """
     if event_key and event_key in _STATUS_MAP:
         return _STATUS_MAP[event_key]
-    if phase and phase in _CATEGORY_MAP:
-        return _CATEGORY_MAP[phase]
 
+    # event_key itself is unmapped — same one-shot-warning rule as
+    # map_parcel_status: log it even when the phase fallback below still
+    # yields a result, so an unmapped key never hides behind it.
+    result = _CATEGORY_MAP.get(phase, None) if phase else None
     key = (event_key or "", phase or "")
     if key not in _unmapped_event_keys_logged:
         _unmapped_event_keys_logged.add(key)
         _LOGGER.warning(
             "Unrecognised DHL status — help us map it. Open an issue and "
             "paste this line: %s\n  [history] key=%s phase=%s "
-            "→ reported as 'unknown'",
+            "→ reported as '%s'",
             _NEW_ISSUE_URL,
             event_key,
             phase,
+            result if result is not None else "unknown",
         )
-    return None
+    return result
 
 
 def _parse_iso(value: str | None) -> datetime | None:
