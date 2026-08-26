@@ -79,6 +79,10 @@ _STATUS_MAP: dict[str, ParcelStatus] = {
     "DELIVERED_DAMAGED": ParcelStatus.DELIVERED,
     "DELIVERED_NOT_IN_TIME": ParcelStatus.DELIVERED,
     "DELIVERED_NO_CODE_VALIDATION": ParcelStatus.DELIVERED,
+    # Category DELIVERED already falls back to DELIVERED for this, but mapping
+    # it explicitly stops the unmapped-status warning from firing on the
+    # generic terminal history event of the same name.
+    "DELIVERED": ParcelStatus.DELIVERED,
     # --- Failed delivery, going back to the sender ---
     # None of these are expressible via the category map, which would mislabel
     # them IN_TRANSIT (UNDERWAY) or PROBLEM (INTERVENTION/EXCEPTION).
@@ -138,6 +142,11 @@ _STATUS_MAP: dict[str, ParcelStatus] = {
     "INTERVENTION_RECEIVER_REQUESTS_DELIVERY_AT_PARCELSHOP": ParcelStatus.IN_TRANSIT,
     "INTERVENTION_RECEIVER_REQUESTS_DELIVERY_AT_PARCELSTATION": ParcelStatus.IN_TRANSIT,
     "INTERVENTION_RECEIVER_REQUESTS_DELIVERY_AT_PREFERRED_NEIGHBOURS": ParcelStatus.IN_TRANSIT,
+    # Routine hub/depot scan events. Category UNDERWAY already falls back to
+    # IN_TRANSIT for these, but mapping them explicitly stops the
+    # unmapped-status warning from firing on every ordinary sort/arrival scan.
+    "PARCEL_ARRIVED_AT_LOCAL_DEPOT": ParcelStatus.IN_TRANSIT,
+    "PARCEL_SORTED_AT_HUB": ParcelStatus.IN_TRANSIT,
 }
 
 # DHL category (high-level state) → canonical ParcelStatus. Used as a

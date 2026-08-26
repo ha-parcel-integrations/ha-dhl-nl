@@ -152,6 +152,24 @@ def test_data_received_variants_map_to_registered_without_warning(status, caplog
     assert status not in caplog.text
 
 
+@pytest.mark.parametrize(
+    "status,category,expected",
+    [
+        ("DELIVERED", "DELIVERED", ParcelStatus.DELIVERED),
+        ("PARCEL_ARRIVED_AT_LOCAL_DEPOT", "UNDERWAY", ParcelStatus.IN_TRANSIT),
+        ("PARCEL_SORTED_AT_HUB", "UNDERWAY", ParcelStatus.IN_TRANSIT),
+    ],
+)
+def test_hub_and_terminal_events_map_without_warning(status, category, expected, caplog):
+    """These already resolved correctly via the category fallback, but kept
+    tripping the unmapped-status warning on ordinary history events. Now
+    mapped explicitly, so no warning fires.
+    """
+    parcel = {"status": status, "category": category}
+    assert map_parcel_status(parcel) == expected
+    assert status not in caplog.text
+
+
 def test_active_parcel_is_included():
     assert filter_active_parcels([parcel_sample("IN_DELIVERY")]) != []
 
