@@ -138,6 +138,20 @@ def test_fully_unmapped_status_returns_unknown_and_warns(caplog):
     assert "issues/new" in caplog.text
 
 
+@pytest.mark.parametrize(
+    "status",
+    ["PRENOTIFICATION_RECEIVED", "DATA_RECEIVED_WITH_PREFIX_LABEL"],
+)
+def test_data_received_variants_map_to_registered_without_warning(status, caplog):
+    """Regression for issue #12: these DATA_RECEIVED variants already resolved
+    to REGISTERED via the category fallback, but kept tripping the
+    unmapped-status warning. Now mapped explicitly, so no warning fires.
+    """
+    parcel = {"status": status, "category": "DATA_RECEIVED"}
+    assert map_parcel_status(parcel) == ParcelStatus.REGISTERED
+    assert status not in caplog.text
+
+
 def test_active_parcel_is_included():
     assert filter_active_parcels([parcel_sample("IN_DELIVERY")]) != []
 

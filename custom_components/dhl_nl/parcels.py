@@ -36,6 +36,13 @@ _LOGGER = logging.getLogger(__name__)
 # this consumer API reports). Grouped by bucket; each entry is backed by the
 # catalogue's description. Extend from that catalogue as new statuses appear.
 _STATUS_MAP: dict[str, ParcelStatus] = {
+    # --- Registered / not yet handed to the carrier ---
+    # Category DATA_RECEIVED already falls back to REGISTERED for these, but
+    # mapping them explicitly stops the unmapped-status warning from firing on
+    # every new prefix-label variant DHL reports for the same registered state.
+    # ha-parcel-integrations/ha-dhl-nl#12
+    "PRENOTIFICATION_RECEIVED": ParcelStatus.REGISTERED,
+    "DATA_RECEIVED_WITH_PREFIX_LABEL": ParcelStatus.REGISTERED,
     # --- Out for delivery (with the courier) ---
     "OUT_FOR_DELIVERY": ParcelStatus.OUT_FOR_DELIVERY,
     "LOAD_VEHICLE": ParcelStatus.OUT_FOR_DELIVERY,
