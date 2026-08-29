@@ -38,7 +38,7 @@ A custom Home Assistant integration that tracks your incoming and outgoing DHL e
 
 ## Requirements
 
-- Home Assistant 2024.7 or newer
+- Home Assistant 2024.12 or newer
 - A [DHL eCommerce NL](https://my.dhlecommerce.nl) account (the consumer portal, not the business API)
 
 ## Installation
@@ -118,6 +118,13 @@ their entity_ids carry the same account suffix:
 | `DHL (account) Delivered parcels` | Recently delivered incoming parcels (configurable window) |
 | `DHL (account) Outgoing parcels` | Number of active outgoing parcels, including return shipments on their way back to a shop |
 | `DHL (account) Outgoing delivered parcels` | Recently delivered outgoing parcels, including completed returns (same configurable window) |
+| `DHL (account) Last update` | Diagnostic timestamp of the last successful poll — alert on this if the integration goes silently stale |
+
+A **`DHL (account) Deliveries`** calendar entity is also created, showing
+expected delivery dates for active parcels — read-only, no extra API calls.
+
+A **`DHL (account) Refresh`** button entity forces both coordinators to poll
+immediately, without waiting for the next scheduled interval.
 
 Every parcel exposed on a sensor attribute uses a carrier-agnostic shape:
 
@@ -154,7 +161,7 @@ the raw value stays available on `raw_status` for power users.
 | `out_for_delivery` | On the delivery vehicle today | raw status `OUT_FOR_DELIVERY` |
 | `at_pickup_point` | Arrived at the chosen ServicePoint, ready to be collected | raw status `NOTIFICATION_FOR_PARCELSHOP_COLLECTION_HAS_BEEN_SENT` |
 | `delivered` | Handed over to the recipient, mailbox, neighbour, or picked up at a ServicePoint | category `DELIVERED` or raw status `COLLECTED_AT_PARCELSHOP` |
-| `returning` | Failed delivery, on the way back to the sender | (not yet observed; will be added once the raw indicator is confirmed) |
+| `returning` | Failed delivery, on the way back to the sender | mapped from 46 raw DHL statuses/categories indicating a return-to-sender in progress |
 | `problem` | Carrier reports an exception, intervention, or other issue with the parcel | category `INTERVENTION`, `EXCEPTION`, or `PROBLEM` |
 | `unknown` | Raw status/category we have not mapped yet | anything else — logged once at warning level with a ready-to-paste issue link so it can be added to the map |
 

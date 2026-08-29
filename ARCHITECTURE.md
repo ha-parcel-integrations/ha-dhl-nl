@@ -8,11 +8,18 @@ This document describes the internal structure of the DHL NL integration, how th
 custom_components/dhl_nl/
 ├── __init__.py        # Entry point: setup, teardown, wires up client + coordinators
 ├── api.py             # HTTP client: login, fetch parcels, fetch sent shipments
-├── config_flow.py     # UI config flow: initial setup + re-authentication
+├── button.py           # Refresh button entity
+├── calendar.py         # Deliveries calendar entity
+├── config_flow.py     # UI config flow: initial setup, options, re-authentication
 ├── const.py           # All constants: URLs, domain, poll interval, active categories
 ├── coordinator.py     # DataUpdateCoordinator subclasses: polling + filtering
-├── sensor.py          # Sensor entities: summary + per-parcel + outgoing summary
+├── device.py           # Shared device-info helper
+├── device_trigger.py   # Exposes bus events as device automation triggers
+├── diagnostics.py      # Redacted diagnostics dump
+├── parcels.py          # Filtering / normalisation / sorting helpers over raw parcel dicts
+├── sensor.py          # Sensor entities: summary + per-parcel + outgoing summary + last_update
 ├── manifest.json      # HA integration manifest
+├── icons.json          # Entity icon translations
 ├── strings.json       # UI strings (source of truth, duplicated into translations/)
 └── translations/
     ├── en.json        # English translations
@@ -42,11 +49,13 @@ DhlCoordinator      DhlSentShipmentsCoordinator
         └─────────┬──────────┘
                    ▼
        merged at the sensor layer:
-  DhlPackagesSensor      DhlSentShipmentsSensor        (outgoing_parcels)
-  DhlParcelSensor        DhlOutgoingDeliveredSensor    (outgoing_delivered_parcels)
+  DhlIncomingParcelsSensor   DhlSentShipmentsSensor        (outgoing_parcels)
+  DhlParcelSensor            DhlOutgoingDeliveredSensor    (outgoing_delivered_parcels)
   DhlNextDeliverySensor
+  DhlEnRouteToServicePointSensor
   DhlPickupPendingSensor
   DhlDeliveredParcelsSensor
+  DhlLastUpdateSensor
   (sensor.py)
         │
         ▼
@@ -88,7 +97,7 @@ DhlCoordinator      DhlSentShipmentsCoordinator
 - Both coordinators raise `UpdateFailed` on any `DhlApiError` or `aiohttp.ClientError`; session recovery is handled by the client, not the coordinators
 
 ### `sensor.py`
-- `DhlPackagesSensor` — summary sensor for incoming parcels; also manages the lifecycle of `DhlParcelSensor` entities (creates new ones, removes stale ones from the entity registry on each coordinator update)
+- `DhlIncomingParcelsSensor` — summary sensor for incoming parcels; also manages the lifecycle of `DhlParcelSensor` entities (creates new ones, removes stale ones from the entity registry on each coordinator update)
 - `DhlParcelSensor` — one entity per active incoming parcel, keyed by barcode
 - `DhlNextDeliverySensor` — derives the earliest `receivingTimeIndication.moment` across all active parcels; device class `TIMESTAMP` for native HA datetime handling
 - `DhlEnRouteToServicePointSensor` — counts active parcels destined for a ServicePoint where status is not yet `NOTIFICATION_FOR_PARCELSHOP_COLLECTION_HAS_BEEN_SENT`
@@ -96,7 +105,14 @@ DhlCoordinator      DhlSentShipmentsCoordinator
 - `DhlDeliveredParcelsSensor` — recently delivered incoming parcels (`coordinator.delivered`)
 - `DhlSentShipmentsSensor` — active **outgoing** parcels: `sent_coordinator.data` (own-sender shipments, almost always empty) merged with `coordinator.returning` (return parcels, the data that actually populates this sensor in practice)
 - `DhlOutgoingDeliveredSensor` — delivered outgoing parcels: `sent_coordinator.delivered` merged with `coordinator.delivered_outgoing`
+- `DhlLastUpdateSensor` — diagnostic `TIMESTAMP` sensor reading `coordinator.last_success_time`, stamped at the end of a successful `_async_update_data`
 - Neither outgoing sensor creates per-shipment entities; both bind to `DhlCoordinator` for update notifications (see "Returns are outgoing" below for why)
+
+### `button.py`
+- `DhlRefreshButton` — presses trigger `async_request_refresh()` on both coordinators
+
+### `calendar.py`
+- `DhlDeliveriesCalendar` — read-only calendar over `coordinator.data`, no extra API calls
 
 ## Key design decisions
 
