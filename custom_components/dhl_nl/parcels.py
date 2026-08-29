@@ -497,8 +497,14 @@ def _apply_delivered_filter(parcels: list[dict], entry: ConfigEntry) -> list[dic
             if (dt := _delivery_dt(p)) is None or dt >= cutoff
         ]
 
-    # "parcels" — return the most recent N
-    return parcels[:filter_amount]
+    # "parcels" — return the most recent N. Sort first rather than trusting
+    # the API's own ordering, so this holds regardless of what DHL returns.
+    ordered = sorted(
+        parcels,
+        key=lambda p: _delivery_dt(p) or datetime.min.replace(tzinfo=timezone.utc),
+        reverse=True,
+    )
+    return ordered[:filter_amount]
 
 
 def sort_parcels_by_ts(
