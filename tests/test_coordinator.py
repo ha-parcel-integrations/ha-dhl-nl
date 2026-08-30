@@ -270,6 +270,27 @@ def test_mixed_parcels_split_correctly_between_incoming_and_returns():
     assert [p["barcode"] for p in filter_delivered_returns(parcels)] == ["return-delivered"]
 
 
+def test_missing_is_return_field_falls_back_to_incoming(caplog):
+    parcel = parcel_sample("IN_DELIVERY", barcode="no-isreturn-field")
+    del parcel["isReturn"]
+
+    assert filter_active_parcels([parcel]) == [parcel]
+    assert filter_active_returns([parcel]) == []
+    assert "no-isreturn-field" in caplog.text
+    assert "isReturn" in caplog.text
+
+
+def test_missing_is_return_field_logged_once_per_barcode(caplog):
+    parcel = parcel_sample("IN_DELIVERY", barcode="repeat-barcode")
+    del parcel["isReturn"]
+
+    filter_active_parcels([parcel])
+    caplog.clear()
+    filter_active_parcels([parcel])
+
+    assert "repeat-barcode" not in caplog.text
+
+
 # ---------------------------------------------------------------------------
 # filter_active_sent_shipments
 # ---------------------------------------------------------------------------

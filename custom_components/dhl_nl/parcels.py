@@ -180,6 +180,34 @@ _NEW_ISSUE_URL = (
 # (event key, phase).
 _unmapped_statuses_logged: set[tuple[str, str]] = set()
 _unmapped_event_keys_logged: set[tuple[str, str]] = set()
+_missing_is_return_logged: set[str] = set()
+
+
+def _is_return(parcel: dict) -> bool:
+    """Return whether a parcel is a return, defaulting missing ``isReturn`` to False.
+
+    ``isReturn`` is the only thing that splits DHL's single parcels list into
+    incoming vs. return. If it's ever absent, treating it as unknown-and-drop
+    (the old behaviour) meant the parcel matched neither ``filter_*_parcels``
+    nor ``filter_*_returns`` and vanished from every sensor with no trace.
+    Defaulting to "incoming" plus a one-shot warning at least keeps it visible
+    somewhere while surfacing the shape change so it can be reported and fixed.
+    """
+    value = parcel.get("isReturn")
+    if value is None:
+        barcode = parcel.get("barcode") or "unknown"
+        if barcode not in _missing_is_return_logged:
+            _missing_is_return_logged.add(barcode)
+            _LOGGER.warning(
+                "DHL parcel %s has no 'isReturn' field — treating it as "
+                "incoming. Please open an issue at %s so we can confirm "
+                "this shape",
+                barcode,
+                "https://github.com/ha-parcel-integrations/ha-dhl-nl/issues/new",
+            )
+        return False
+    return bool(value)
+
 
 def map_parcel_status(parcel: dict) -> ParcelStatus:
     """Map a raw DHL parcel to a canonical :class:`ParcelStatus`.
@@ -401,7 +429,7 @@ def filter_active_parcels(parcels: list[dict]) -> list[dict]:
     """Return only active incoming parcels (not returns, in an active category)."""
     return [
         p for p in parcels
-        if not p.get("isReturn", True)
+        if not _is_return(p)
         and p.get("category") in ACTIVE_CATEGORIES
     ]
 
@@ -410,7 +438,7 @@ def filter_delivered_parcels(parcels: list[dict]) -> list[dict]:
     """Return delivered incoming parcels (not returns, category DELIVERED)."""
     return [
         p for p in parcels
-        if not p.get("isReturn", True)
+        if not _is_return(p)
         and p.get("category") == "DELIVERED"
     ]
 
@@ -446,7 +474,7 @@ def filter_active_returns(parcels: list[dict]) -> list[dict]:
     """
     return [
         p for p in parcels
-        if p.get("isReturn")
+        if _is_return(p)
         and p.get("category") in ACTIVE_CATEGORIES
     ]
 
@@ -455,7 +483,7 @@ def filter_delivered_returns(parcels: list[dict]) -> list[dict]:
     """Return return parcels that have arrived back at the shipper."""
     return [
         p for p in parcels
-        if p.get("isReturn")
+        if _is_return(p)
         and p.get("category") == "DELIVERED"
     ]
 
