@@ -38,7 +38,6 @@ A custom Home Assistant integration that tracks your incoming and outgoing DHL e
 
 ## Requirements
 
-- Home Assistant 2024.12 or newer
 - A [DHL eCommerce NL](https://my.dhlecommerce.nl) account (the consumer portal, not the business API)
 
 ## Installation
