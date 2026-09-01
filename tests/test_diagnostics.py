@@ -1,4 +1,5 @@
 """Tests for the DHL diagnostics handler."""
+from datetime import timedelta
 from unittest.mock import MagicMock
 
 import pytest
@@ -21,15 +22,25 @@ def _entry_with_runtime_data(
     outgoing: list[dict] | None = None,
     outgoing_delivered: list[dict] | None = None,
     user_info: dict | None = None,
+    current_tier_minutes: int | None = 45,
+    update_interval: timedelta | None = timedelta(minutes=45),
+    sent_current_tier_minutes: int | None = 45,
+    sent_update_interval: timedelta | None = timedelta(minutes=45),
 ) -> MagicMock:
     coordinator = MagicMock()
     coordinator.data = incoming or []
     coordinator.delivered = delivered or []
     coordinator.returning = returning or []
     coordinator.delivered_outgoing = delivered_outgoing or []
+    # Explicit, not left as an unconfigured MagicMock attribute, or the
+    # "polling" block below would carry a MagicMock instead of a real value.
+    coordinator.current_tier_minutes = current_tier_minutes
+    coordinator.update_interval = update_interval
     sent_coordinator = MagicMock()
     sent_coordinator.data = outgoing or []
     sent_coordinator.delivered = outgoing_delivered or []
+    sent_coordinator.current_tier_minutes = sent_current_tier_minutes
+    sent_coordinator.update_interval = sent_update_interval
 
     entry = MagicMock()
     entry.data = {"email": "user@example.com", "password": "secret"}
@@ -111,6 +122,40 @@ async def test_diagnostics_reports_counts():
         "outgoing_delivered": 0,
     }
     assert [p["barcode"] for p in result["returning"]] == ["**REDACTED**"]
+
+
+@pytest.mark.asyncio
+async def test_diagnostics_surfaces_polling_state():
+    entry = _entry_with_runtime_data(
+        current_tier_minutes=15,
+        update_interval=timedelta(minutes=15),
+        sent_current_tier_minutes=45,
+        sent_update_interval=timedelta(minutes=45),
+    )
+    result = await async_get_config_entry_diagnostics(MagicMock(), entry)
+    assert result["polling"] == {
+        "current_tier_minutes": 15,
+        "update_interval_seconds": 15 * 60,
+        "sent_current_tier_minutes": 45,
+        "sent_update_interval_seconds": 45 * 60,
+    }
+
+
+@pytest.mark.asyncio
+async def test_diagnostics_polling_handles_fixed_interval_mode():
+    entry = _entry_with_runtime_data(
+        current_tier_minutes=None,
+        update_interval=timedelta(minutes=30),
+        sent_current_tier_minutes=None,
+        sent_update_interval=timedelta(minutes=30),
+    )
+    result = await async_get_config_entry_diagnostics(MagicMock(), entry)
+    assert result["polling"] == {
+        "current_tier_minutes": None,
+        "update_interval_seconds": 30 * 60,
+        "sent_current_tier_minutes": None,
+        "sent_update_interval_seconds": 30 * 60,
+    }
 
 
 def test_to_redact_includes_pii_keys():

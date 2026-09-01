@@ -13,8 +13,10 @@ from custom_components.dhl_nl.const import (
     CONF_DELIVERED_FILTER_TYPE,
     CONF_INCLUDE_HISTORY,
     CONF_REFRESH_INTERVAL,
+    DEFAULT_NEW_REFRESH_INTERVAL,
     DEFAULT_REFRESH_INTERVAL,
     DOMAIN,
+    REFRESH_INTERVAL_AUTO,
 )
 
 _USER_INPUT = {CONF_EMAIL: "user@example.com", CONF_PASSWORD: "secret"}
@@ -52,6 +54,9 @@ async def test_user_flow_creates_entry(hass):
     assert result["data"] == _USER_INPUT
     assert result["options"][CONF_DELIVERED_FILTER_TYPE] == "days"
     assert result["options"][CONF_DELIVERED_FILTER_AMOUNT] == 14
+    # New installs default to dynamic polling (dynamic-polling.md Section 5.2).
+    assert result["options"][CONF_REFRESH_INTERVAL] == DEFAULT_NEW_REFRESH_INTERVAL
+    assert DEFAULT_NEW_REFRESH_INTERVAL == REFRESH_INTERVAL_AUTO
 
 
 @pytest.mark.asyncio
@@ -159,6 +164,39 @@ async def test_options_flow_updates_filter_and_refresh_interval(hass):
     assert result["data"][CONF_DELIVERED_FILTER_AMOUNT] == 30
     assert result["data"][CONF_INCLUDE_HISTORY] is True
     assert result["data"][CONF_REFRESH_INTERVAL] == 60
+
+
+@pytest.mark.asyncio
+async def test_options_flow_can_switch_to_auto(hass):
+    """An existing fixed-interval entry can opt into dynamic polling."""
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id=_USER_INPUT[CONF_EMAIL],
+        data=_USER_INPUT,
+        options={
+            CONF_DELIVERED_FILTER_TYPE: "days",
+            CONF_DELIVERED_FILTER_AMOUNT: 7,
+            CONF_REFRESH_INTERVAL: 30,
+        },
+    )
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={
+            "delivered": {
+                CONF_DELIVERED_FILTER_TYPE: "days",
+                CONF_DELIVERED_FILTER_AMOUNT: 7,
+            },
+            "history": {CONF_INCLUDE_HISTORY: False},
+            "polling": {CONF_REFRESH_INTERVAL: REFRESH_INTERVAL_AUTO},
+        },
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_REFRESH_INTERVAL] == REFRESH_INTERVAL_AUTO
 
 
 @pytest.mark.asyncio

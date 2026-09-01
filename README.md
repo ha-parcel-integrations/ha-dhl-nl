@@ -90,7 +90,35 @@ sections:
 
 | Option | Description |
 |---|---|
-| Refresh every | How often the integration checks DHL. Choices: **15 / 30 / 60 / 120 / 240 minutes** — default 30. A slower interval is gentler on DHL's consumer API. Changes take effect immediately, no HA restart needed. |
+| Refresh every | **Automatic**, or a fixed **15 / 30 / 60 / 120 / 240 minutes**. New installs default to Automatic; existing installs keep their current fixed value until changed. Changes take effect immediately, no HA restart needed. See [Dynamic polling](#dynamic-polling) below. |
+
+## Dynamic polling
+
+You can set **Refresh every** to **Automatic** instead of a fixed number of
+minutes. Instead of polling DHL at the same rate around the clock, the
+integration adjusts its own cadence to what your parcels — incoming **and**
+outgoing (sent shipments and returns) — are actually doing:
+
+- **Quiet hours** — no polling between 00:00–06:00 local time, aside from one
+  catch-up check at each end of that window (around midnight and around 6
+  AM), so an overnight update is never missed.
+- **Hot (every 15 minutes)** — while any tracked parcel, incoming or
+  outgoing, is out for delivery today, starting an hour before its delivery
+  window opens (or immediately if no window is known yet).
+- **Normal (every 45 minutes)** — for everything else still in transit. This
+  is also the cadence used the rest of the time, so a new shipment that shows
+  up in your account is still discovered without you having to do anything.
+- A small, fixed per-install offset is added on top, so not every DHL
+  installation out there polls at exactly the same second.
+
+Delivered/returned parcels never affect the cadence — only what's still in
+transit counts.
+
+This is opt-in for now, but it's expected to become the default — and
+eventually the only — polling behaviour across the parcel-integrations
+suite. If you try Automatic, we'd genuinely like to hear how it goes:
+share your experience in [this
+discussion](https://github.com/orgs/ha-parcel-integrations/discussions/12).
 
 ## Removal
 

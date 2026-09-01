@@ -48,7 +48,39 @@ entry. Runtime-only; the tests don't catch a regression here.
   account's credentials abort instead of silently rebinding.
 - **Options flow** has no `entry.add_update_listener` — it calls
   `async_schedule_reload` on submit. `CONF_REFRESH_INTERVAL` =
-  15/30/60/120/240 min, default 30.
+  15/30/60/120/240 min, default 30, plus `"auto"` (dynamic, status-driven
+  polling — see below). New config entries default to `"auto"`; an entry
+  created before this option existed keeps its numeric value untouched.
+
+**Dynamic polling (Phase 1 of `carrier-research/dynamic-polling.md`,
+account-based model, Section 2.2)** — `"auto"` is one more selectable
+`CONF_REFRESH_INTERVAL` value, not a replacement for the numeric options.
+When selected, **each** coordinator (`DhlCoordinator` and
+`DhlSentShipmentsCoordinator`) recomputes its own `update_interval` at the
+end of its `_async_update_data`, independently — there is no single shared
+scheduling point since they are two separate `DataUpdateCoordinator`
+instances polled on their own schedules (the refresh `button` triggers both
+together, but the automatic timer does not): a 15 min hot tier the moment
+any active parcel is `out_for_delivery` (starting 1h before `planned_from`,
+or immediately if missing), a 45 min mid tier otherwise — which never
+stops, since the account call is the only way to discover a new shipment
+that appears without going through this integration — and a 00:00–06:00
+local-time quiet window with anchor polls at each end, plus a small
+deterministic per-`entry_id` stagger (same offset for both coordinators,
+since they share the same `entry_id`). `problem`/`returning` stay in the mid
+tier, not hot. **`DhlCoordinator`'s hottest-status scan covers incoming
+(`coordinator.data`) *and* outgoing/returning (`self.returning`)** — per
+dynamic-polling.md Section 6 ("yes, both"), a return that's
+`out_for_delivery` must also drive the tier hot, not just an incoming
+parcel. `DhlSentShipmentsCoordinator` scans its own active sent shipments
+the same way, separately — in practice almost always empty for a consumer
+account (see `filter_active_returns`' docstring), so it mostly sits at the
+mid-tier floor. Surfaced in diagnostics under `"polling"`
+(`current_tier_minutes`/`update_interval_seconds` for the main coordinator,
+`sent_current_tier_minutes`/`sent_update_interval_seconds` for the sent
+coordinator). Do not build a Phase 2 (making `auto` unconditional / dropping
+the dropdown) without a separate maintainer decision — that is explicitly
+out of scope for this rollout.
 
 **Entities & naming**
 - **`has_entity_name = True`** everywhere; names route through `translation_key`

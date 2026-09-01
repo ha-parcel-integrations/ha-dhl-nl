@@ -69,7 +69,7 @@
               "refresh_interval": "Ververs elke"
             },
             "data_description": {
-              "refresh_interval": "Hoe vaak de integratie DHL controleert op pakketupdates. Een langzamer interval is vriendelijker voor DHL; de standaard van 30 minuten is ruim voldoende voor de meeste pakketten."
+              "refresh_interval": "Hoe vaak de integratie DHL controleert op pakketupdates. \"Automatisch\" (de standaard voor nieuwe installaties) versnelt rond verwachte bezorgingen en vertraagt 's nachts; een vast interval verversst dag en nacht met dat vaste tempo."
             }
           }
         }
@@ -79,6 +79,7 @@
   "selector": {
     "refresh_interval": {
       "options": {
+        "auto": "Automatisch (aanbevolen)",
         "15": "15 minuten",
         "30": "30 minuten",
         "60": "60 minuten",

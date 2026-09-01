@@ -43,6 +43,20 @@ async def async_get_config_entry_diagnostics(
             "outgoing_active": len(data.sent_coordinator.data or []),
             "outgoing_delivered": len(data.sent_coordinator.delivered or []),
         },
+        "polling": {
+            "current_tier_minutes": data.coordinator.current_tier_minutes,
+            "update_interval_seconds": (
+                data.coordinator.update_interval.total_seconds()
+                if data.coordinator.update_interval
+                else None
+            ),
+            "sent_current_tier_minutes": data.sent_coordinator.current_tier_minutes,
+            "sent_update_interval_seconds": (
+                data.sent_coordinator.update_interval.total_seconds()
+                if data.sent_coordinator.update_interval
+                else None
+            ),
+        },
         "incoming": async_redact_data(data.coordinator.data or [], TO_REDACT),
         "delivered": async_redact_data(data.coordinator.delivered or [], TO_REDACT),
         "returning": async_redact_data(data.coordinator.returning or [], TO_REDACT),
