@@ -1,0 +1,66 @@
+name: Prepare pre-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Pre-release version in X.Y.ZbN form, for example 2.9.0b1.
+        required: true
+        type: string
+      dry_run:
+        description: Only validate and calculate notes; do not create or update a PR.
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: write
+
+concurrency:
+  group: prerelease-pr-main
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Calculate pre-release PR
+        id: release
+        uses: actions/github-script@v9
+        env:
+          MANIFEST_PATH: custom_components/dhl_nl/manifest.json
+          RELEASE_VERSION: ${{ inputs.version }}
+        with:
+          script: |
+            const prepare = require("./.github/scripts/release_manager.js");
+            await prepare({ github, context, core });
+
+      - name: Require release bot token
+        if: inputs.dry_run == false
+        env:
+          RELEASE_BOT_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+        run: |
+          test -n "$RELEASE_BOT_TOKEN" || {
+            echo "RELEASE_BOT_TOKEN is required to let the release PR trigger normal PR checks." >&2
+            exit 1
+          }
+
+      - name: Create or update pre-release PR
+        if: inputs.dry_run == false
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.RELEASE_BOT_TOKEN }}
+          branch: automation/prerelease
+          delete-branch: true
+          commit-message: Bump version to ${{ steps.release.outputs.version }}
+          title: Bump version to ${{ steps.release.outputs.version }}
+          body: ${{ steps.release.outputs.notes }}
+          add-paths: custom_components/dhl_nl/manifest.json
+          draft: false
