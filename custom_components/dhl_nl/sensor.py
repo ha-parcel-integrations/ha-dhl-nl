@@ -19,7 +19,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from . import DhlConfigEntry
 from .const import DOMAIN, ParcelStatus
 from .coordinator import DhlCoordinator, DhlSentShipmentsCoordinator, sort_parcels_by_ts
-from .device import build_device_info
+from .device import ATTRIBUTION, build_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -149,7 +149,7 @@ class DhlIncomingParcelsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     _attr_has_entity_name = True
     _attr_translation_key = "incoming_parcels"
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_attribution = "Data provided by DHL"
+    _attr_attribution = ATTRIBUTION
     _unrecorded_attributes = frozenset({"parcels"})
 
     def __init__(
@@ -223,7 +223,7 @@ class DhlParcelSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
 
     _attr_has_entity_name = True
     _attr_translation_key = "parcel"
-    _attr_attribution = "Data provided by DHL"
+    _attr_attribution = ATTRIBUTION
     _unrecorded_attributes = frozenset({"raw", "history"})
 
     def __init__(
@@ -289,7 +289,7 @@ class DhlSentShipmentsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     _attr_has_entity_name = True
     _attr_translation_key = "outgoing_parcels"
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_attribution = "Data provided by DHL"
+    _attr_attribution = ATTRIBUTION
     _unrecorded_attributes = frozenset({"parcels"})
 
     def __init__(
@@ -352,7 +352,7 @@ class DhlOutgoingDeliveredSensor(CoordinatorEntity[DhlCoordinator], SensorEntity
     _attr_has_entity_name = True
     _attr_translation_key = "outgoing_delivered_parcels"
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_attribution = "Data provided by DHL"
+    _attr_attribution = ATTRIBUTION
     _unrecorded_attributes = frozenset({"parcels"})
 
     def __init__(
@@ -409,7 +409,7 @@ class DhlNextDeliverySensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     _attr_has_entity_name = True
     _attr_translation_key = "next_delivery"
     _attr_device_class = SensorDeviceClass.TIMESTAMP
-    _attr_attribution = "Data provided by DHL"
+    _attr_attribution = ATTRIBUTION
 
     def __init__(
         self,
@@ -471,7 +471,7 @@ class DhlEnRouteToServicePointSensor(CoordinatorEntity[DhlCoordinator], SensorEn
     _attr_has_entity_name = True
     _attr_translation_key = "en_route_to_service_point"
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_attribution = "Data provided by DHL"
+    _attr_attribution = ATTRIBUTION
     _unrecorded_attributes = frozenset({"parcels"})
 
     def __init__(
@@ -516,7 +516,7 @@ class DhlPickupPendingSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     _attr_has_entity_name = True
     _attr_translation_key = "awaiting_pickup"
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_attribution = "Data provided by DHL"
+    _attr_attribution = ATTRIBUTION
     _unrecorded_attributes = frozenset({"parcels"})
 
     def __init__(
@@ -556,7 +556,7 @@ class DhlDeliveredParcelsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity)
     _attr_has_entity_name = True
     _attr_translation_key = "delivered_parcels"
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_attribution = "Data provided by DHL"
+    _attr_attribution = ATTRIBUTION
     _unrecorded_attributes = frozenset({"parcels"})
 
     def __init__(
@@ -594,7 +594,7 @@ class DhlLastUpdateSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     _attr_translation_key = "last_update"
     _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_attribution = "Data provided by DHL"
+    _attr_attribution = ATTRIBUTION
 
     def __init__(
         self,

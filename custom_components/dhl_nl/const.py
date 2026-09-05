@@ -21,7 +21,7 @@ class ParcelStatus(StrEnum):
     DELIVERED = "delivered"                 # Handed over (mailbox, recipient, neighbour, picked up)
     RETURNING = "returning"                 # Failed delivery, going back to sender
     PROBLEM = "problem"                     # Carrier reports an exception, intervention, or other issue
-    UNKNOWN = "unknown"                     # Raw status we have not mapped yet — logged at info level
+    UNKNOWN = "unknown"                     # Raw status we have not mapped yet — logged at warning level
 
 PLATFORMS = [Platform.BUTTON, Platform.CALENDAR, Platform.SENSOR]
 

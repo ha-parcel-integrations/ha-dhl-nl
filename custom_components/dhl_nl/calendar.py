@@ -12,7 +12,7 @@ from homeassistant.util import dt as dt_util
 
 from . import DhlConfigEntry
 from .coordinator import DhlCoordinator
-from .device import build_device_info
+from .device import ATTRIBUTION, build_device_info
 
 # The coordinator fans data out to this entity; no per-entity polling.
 PARALLEL_UPDATES = 0
@@ -60,7 +60,7 @@ class DhlDeliveriesCalendar(CoordinatorEntity[DhlCoordinator], CalendarEntity):
 
     _attr_has_entity_name = True
     _attr_translation_key = "deliveries"
-    _attr_attribution = "Data provided by DHL"
+    _attr_attribution = ATTRIBUTION
 
     def __init__(
         self, coordinator: DhlCoordinator, user_info: dict[str, Any]

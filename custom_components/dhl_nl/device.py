@@ -14,6 +14,8 @@ from homeassistant.helpers.entity import DeviceInfo
 
 from .const import DOMAIN
 
+ATTRIBUTION = "Data provided by DHL"
+
 
 def build_device_info(user_info: dict[str, Any]) -> DeviceInfo:
     """Return a DeviceInfo dict shared by all sensors for this account.
