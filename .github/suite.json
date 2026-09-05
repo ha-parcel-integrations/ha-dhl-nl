@@ -1,5 +1,4 @@
 {
   "kind": "integration",
-  "domain": "dhl_nl",
-  "research_api_path": "carrier-research/dhl/api/dhl-nl/"
+  "domain": "dhl_nl"
 }
