@@ -81,7 +81,7 @@ QUIET_WINDOW_END_HOUR = 6
 # incoming or outgoing parcel is out_for_delivery within HOT_LOOKAHEAD_HOURS
 # of its planned_from (or has no planned_from at all); mid = anything else
 # still in flight, or nothing tracked at all. This is an account-based
-# coordinator (dynamic-polling.md Section 2.2), so it never fully stops —
+# coordinator, so it never fully stops —
 # the mid-tier poll is also how a new shipment gets discovered, since a
 # single account call is the only way to see one that appeared without going
 # through this integration.
