@@ -68,11 +68,9 @@ DEFAULT_REFRESH_INTERVAL = 30  # minutes — default for entries that predate "a
 # existing entry keeps whatever it already has, numeric or "auto".
 DEFAULT_NEW_REFRESH_INTERVAL = REFRESH_INTERVAL_AUTO
 
-# Dynamic, status-driven polling — selected via "auto" above. See
-# carrier-research/dynamic-polling.md for the full algorithm and reasoning
-# (account-based model, Section 2.2). DHL NL tracks both incoming parcels
-# and outgoing (returns + sent) parcels, so the hottest-status scan runs
-# over both directions — see coordinator.py.
+# Dynamic, status-driven polling — selected via "auto" above. DHL NL tracks
+# both incoming parcels and outgoing (returns + sent) parcels, so the
+# hottest-status scan runs over both directions — see coordinator.py.
 #
 # Quiet window: no polling between these local hours except the two anchors
 # below, for overnight / end-of-day catch-up.
