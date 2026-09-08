@@ -174,6 +174,7 @@ def test_data_received_variants_map_to_registered_without_warning(status, caplog
         ("DELIVERED", "DELIVERED", ParcelStatus.DELIVERED),
         ("PARCEL_ARRIVED_AT_LOCAL_DEPOT", "UNDERWAY", ParcelStatus.IN_TRANSIT),
         ("PARCEL_SORTED_AT_HUB", "UNDERWAY", ParcelStatus.IN_TRANSIT),
+        ("PARCEL_PICKED_UP_AT_PARCELSHOP", "UNDERWAY", ParcelStatus.IN_TRANSIT),
     ],
 )
 def test_hub_and_terminal_events_map_without_warning(status, category, expected, caplog):
