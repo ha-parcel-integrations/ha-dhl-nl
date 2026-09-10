@@ -4,12 +4,20 @@ Home Assistant custom integration for DHL eCommerce NL parcel tracking.
 Distributed via HACS; not part of HA core. **Silver** quality tier,
 minimum HA `2024.12.0`. No DTO layer — network calls return raw JSON dicts.
 
+Three places hold the knowledge, and they do not overlap:
+
+| What | Where |
+|---|---|
+| How this integration is built, and why it is built that way | [`ARCHITECTURE.md`](ARCHITECTURE.md) — read it before touching either coordinator, the outgoing/returns split, or the polling model |
+| Endpoint mechanics, params, status vocabularies | `carrier-research/dhl/api/dhl-nl/` (private repo) — the parcels / sent-shipments / track-trace endpoints, their params and content types, the DHL status/category → `ParcelStatus` vocabulary. **Never** duplicated into this repo |
+| Suite-wide conventions | [`.github/CONVENTIONS.md`](https://github.com/ha-parcel-integrations/.github/blob/main/CONVENTIONS.md) |
+
+This file is the short list of things an agent must not get wrong.
+
 ## Shared conventions — fetch when relevant
 
-Suite-wide rules live in
-[`.github/CONVENTIONS.md`](https://github.com/ha-parcel-integrations/.github/blob/main/CONVENTIONS.md)
-and are **not** repeated here. Don't fetch it every session — fetch it **before**
-you act in one of these areas:
+Don't fetch `CONVENTIONS.md` every session — fetch it **before** you act in one
+of these areas:
 
 | Before you … | Fetch `CONVENTIONS.md` § |
 |---|---|
@@ -17,11 +25,6 @@ you act in one of these areas:
 | add/rename a parcel field, a `ParcelStatus`, or a bus event; change first-refresh or unmapped-status logging | *Parcel contract* (this repo implements it; below is only where DHL deviates) |
 | consider "fixing" a lint/pattern the skill flags (poll interval, inline client, sync requests) | *Deliberate skill divergences* — likely intentional, don't re-flag |
 | commit, bump, tag, release, or write release notes; add a feature without a test | *Workflow / Commits / Versioning / Testing* |
-
-**API mechanics live in `carrier-research/dhl/api/dhl-nl/` (private research repo)** — the parcels /
-sent-shipments / track-trace endpoints, their params and content types, and the
-DHL status/category → `ParcelStatus` vocabulary. Do not duplicate them here; this
-file is HA-integration decisions only.
 
 **Suite-wide tripwire, kept inline on purpose:** the first refresh runs in
 `__init__.py` *before* `async_forward_entry_setups`, never in a platform — from a
@@ -48,39 +51,36 @@ entry. Runtime-only; the tests don't catch a regression here.
   account's credentials abort instead of silently rebinding.
 - **Options flow** has no `entry.add_update_listener` — it calls
   `async_schedule_reload` on submit. `CONF_REFRESH_INTERVAL` =
-  15/30/60/120/240 min, default 30, plus `"auto"` (dynamic, status-driven
-  polling — see below). New config entries default to `"auto"`; an entry
-  created before this option existed keeps its numeric value untouched.
+  15/30/60/120/240 min plus `"auto"` (dynamic, status-driven; Phase 1 of
+  `carrier-research/dynamic-polling.md`, account-based model). New entries
+  default to `"auto"`; an entry created before this option existed keeps its
+  numeric value untouched. `POLL_INTERVAL` in `const.py` is a **legacy
+  fallback constant, not the live cadence** — don't reintroduce it as one.
 
-**Dynamic polling (Phase 1 of `carrier-research/dynamic-polling.md`,
-account-based model, Section 2.2)** — `"auto"` is one more selectable
-`CONF_REFRESH_INTERVAL` value, not a replacement for the numeric options.
-When selected, **each** coordinator (`DhlCoordinator` and
-`DhlSentShipmentsCoordinator`) recomputes its own `update_interval` at the
-end of its `_async_update_data`, independently — there is no single shared
-scheduling point since they are two separate `DataUpdateCoordinator`
-instances polled on their own schedules (the refresh `button` triggers both
-together, but the automatic timer does not): a 15 min hot tier the moment
-any active parcel is `out_for_delivery` (starting 1h before `planned_from`,
-or immediately if missing), a 45 min mid tier otherwise — which never
-stops, since the account call is the only way to discover a new shipment
-that appears without going through this integration — and a 00:00–06:00
-local-time quiet window with anchor polls at each end, plus a small
-deterministic per-`entry_id` stagger (same offset for both coordinators,
-since they share the same `entry_id`). `problem`/`returning` stay in the mid
-tier, not hot. **`DhlCoordinator`'s hottest-status scan covers incoming
-(`coordinator.data`) *and* outgoing/returning (`self.returning`)** — per
-dynamic-polling.md Section 6 ("yes, both"), a return that's
-`out_for_delivery` must also drive the tier hot, not just an incoming
-parcel. `DhlSentShipmentsCoordinator` scans its own active sent shipments
-the same way, separately — in practice almost always empty for a consumer
-account (see `filter_active_returns`' docstring), so it mostly sits at the
-mid-tier floor. Surfaced in diagnostics under `"polling"`
-(`current_tier_minutes`/`update_interval_seconds` for the main coordinator,
-`sent_current_tier_minutes`/`sent_update_interval_seconds` for the sent
-coordinator). Do not build a Phase 2 (making `auto` unconditional / dropping
-the dropdown) without a separate maintainer decision — that is explicitly
-out of scope for this rollout.
+**Two coordinators, one client — and each recomputes its own interval.**
+`DhlCoordinator` and `DhlSentShipmentsCoordinator` share one `DhlApiClient`
+(hence one session + cookie jar), but under `"auto"` each recomputes
+`update_interval` independently at the end of its own `_async_update_data` —
+there is no shared scheduling point. `DhlCoordinator`'s hottest-status scan must
+cover incoming (`coordinator.data`) **and** outgoing/returning
+(`self.returning`): a return that's `out_for_delivery` drives the tier hot too.
+Do not build a Phase 2 (making `auto` unconditional) without a separate
+maintainer decision. Full model: [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
+**Session recovery lives in the client, not the coordinators.** `async_get_parcels`
+/ `async_get_sent_shipments` retry once after a fresh `async_login()` on 401/403,
+behind an `asyncio.Lock` so two coordinators hitting a 401 together cause one
+re-login, not two.
+
+**Outgoing = own-sender shipments + folded-in returns.** A webshop return makes
+the account the *receiver*, so returns never come via the sent-shipments call —
+they're split out of the parcels list into `DhlCoordinator.returning` /
+`.delivered_outgoing`. **The return flag is an internal filter, never an entity
+name** — a separate "return" sensor was tried and reverted; externally a return
+is just another way a parcel is *outgoing* (PostNL's model). Both outgoing
+sensors merge from **two** coordinators and **subscribe to `sent_coordinator`**
+in `async_added_to_hass` — don't drop that or they go stale. Keep the thin
+`DhlCoordinator._apply_delivered_filter` wrapper (tests call it).
 
 **Entities & naming**
 - **`has_entity_name = True`** everywhere; names route through `translation_key`
@@ -110,58 +110,23 @@ out of scope for this rollout.
   `_unmapped_event_keys_logged`. The `en_route` / `awaiting_pickup` sensors split
   on `ParcelStatus.AT_PICKUP_POINT`.
 
-**History (opt-in, default OFF — `CONF_INCLUDE_HISTORY`)**
-- Top-level `history` (survives the aggregator's `strip_raw()`); `None` when off
-  (key never omitted).
-- **Cost control**: `_history_cache`; `_enrich_history` runs only for
-  **active + delivered incoming**, and only fetches on first sight of a barcode or
-  a raw-status change. History status reuses the parcel maps (don't extend them
-  per event). **Returns fetch no history** (the track-trace call is receiver-role).
+**History (opt-in, default OFF — `CONF_INCLUDE_HISTORY`)** — top-level `history`
+(survives the aggregator's `strip_raw()`); `None` when off, key never omitted.
+**Cost control**: `_history_cache`; `_enrich_history` runs only for **active +
+delivered incoming**, fetching only on first sight of a barcode or a raw-status
+change. History status reuses the parcel maps (don't extend them per event).
+**Returns fetch no history** (the track-trace call is receiver-role).
 
-**Outgoing = own-sender shipments + folded-in returns**
-- A webshop return makes the account the *receiver*, so returns never come via the
-  sent-shipments call — they're split out of the parcels list into
-  `DhlCoordinator.returning` / `.delivered_outgoing`.
-- **The return flag is an internal filter, never an entity name.** A separate
-  "return" sensor was tried and reverted — externally a return is just another way
-  a parcel is *outgoing* (PostNL's model). Merge return-adjacent data into the
-  existing outgoing sensors.
-- `DhlSentShipmentsSensor` (`_outgoing_parcels`) merges `sent_coordinator.data` +
-  `coordinator.returning`; `DhlOutgoingDeliveredSensor`
-  (`_outgoing_delivered_parcels`) merges `sent_coordinator.delivered` +
-  `coordinator.delivered_outgoing`. Both re-sort with `sort_parcels_by_ts` and
-  **subscribe to `sent_coordinator`** in `async_added_to_hass` — don't drop it or
-  they go stale. `_apply_delivered_filter` / `_delivery_dt` are module-level so the
-  sent coordinator reuses the filter; keep the thin
-  `DhlCoordinator._apply_delivered_filter` wrapper (tests call it).
+**Events** — incoming run over **active + delivered** combined so the terminal
+hop is visible: the change **to** DELIVERED fires only `_delivered`; an
+already-delivered barcode fires nothing; `registered` only for not-yet-delivered
+new barcodes. `delivery_time_changed` only when a `planned_*` becomes non-null
+*and* differs — `value → null` is intentionally silent. Outgoing runs over
+`returning + delivered_outgoing` with **no** `registered`/`delivery_time_changed`,
+sourced from `DhlCoordinator`, not the sent coordinator.
 
-**Events** (generic contract in CONVENTIONS.md; DHL specifics here)
-- Incoming events run over **active + delivered** combined so the terminal hop is
-  visible: a change **to** DELIVERED fires only `_delivered`; an already-delivered
-  barcode fires nothing; `registered` only for not-yet-delivered new barcodes.
-  `delivery_time_changed` fires only when a `planned_*` becomes non-null and
-  differs — `value → null` is intentionally silent. State in `_known_state` /
-  `_known_delivery_times`.
-- Outgoing: `dhl_nl_outgoing_parcel_status_changed` / `_outgoing_parcel_delivered`
-  over `returning + delivered_outgoing`; `delivered` wins the terminal hop.
-  **No** outgoing `registered` / `delivery_time_changed`. State in
-  `_known_outgoing_state`. Source is `DhlCoordinator` (returns), not the sent
-  coordinator (own-sender is ~always empty for consumers).
-- `device_id` on every payload (resolved once, cached in `_cached_device_id`);
-  `device_trigger.py` exposes all bus events under `device_automation.trigger_type`.
-
-**Other surfaces**
-- **Refresh `button`** (`{user_id}_refresh`): `async_press` refreshes **both**
-  coordinators.
-- **Diagnostic `last_update` sensor** (`{user_id}_last_update`, TIMESTAMP,
-  DIAGNOSTIC) reads `coordinator.last_success_time` (stamped at the end of a
-  successful `_async_update_data`) — lets users alert on a silently stale
-  integration.
-- **Deliveries `calendar`** (`{user_id}_deliveries`): read-only over
-  `coordinator.data`, **no extra API calls**, enabled by default. A cross-carrier
-  calendar belongs in the aggregator.
-- **Diagnostics** redact credentials + PII: `name` (raw payloads) and normalized
-  `receiver` are in `TO_REDACT`.
+**Diagnostics** redact credentials + PII: `name` (raw payloads) and normalized
+`receiver` are in `TO_REDACT`. Over-redact — they get pasted into public issues.
 
 ## Planned / skipped
 
@@ -177,4 +142,6 @@ python -m pytest tests/ --cov=custom_components.dhl_nl
 ```
 
 Coverage must stay **above 95%** (silver `test-coverage` rule). Run before
-committing.
+committing. A code change updates the README, `ARCHITECTURE.md` and this file in
+the same commit; API mechanics go to `carrier-research/dhl/api/dhl-nl/`, never
+here.
