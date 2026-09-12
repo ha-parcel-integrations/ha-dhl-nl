@@ -1413,8 +1413,8 @@ async def test_dhl_coordinator_goes_hot_from_incoming_out_for_delivery(hass):
 
 async def test_dhl_coordinator_goes_hot_from_returning_out_for_delivery(hass):
     """A returning (outgoing) parcel out_for_delivery also drives the tier hot —
-    the hottest-status scan covers incoming AND outgoing (dynamic-polling.md
-    Section 2.2 / Section 6), not just coordinator.data.
+    the hottest-status scan covers incoming AND outgoing, not just
+    coordinator.data.
     """
     client = MagicMock()
     client.async_get_parcels = AsyncMock(return_value=[

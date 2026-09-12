@@ -66,7 +66,7 @@ def _next_anchor(now: datetime) -> datetime:
 
 
 def _hottest_tier_minutes(active_parcels: list[dict], now: datetime) -> int:
-    """Tier for the account-based model (dynamic-polling.md Section 2.2).
+    """Tier for the account-based model.
 
     Unlike a barcode-based coordinator this never returns ``None`` — a single
     account call already returns the full account state, so the mid-tier
@@ -278,8 +278,8 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
 
         self.last_success_time = datetime.now(timezone.utc)
 
-        # Hottest-status scan over incoming AND outgoing (returns), per
-        # dynamic-polling.md Section 2.2 / Section 6 — not just incoming.
+        # Hottest-status scan over incoming AND outgoing (returns) — not
+        # just incoming.
         now = dt_util.now()
         self._current_tier_minutes = _hottest_tier_minutes(
             normalized_active + self.returning, now

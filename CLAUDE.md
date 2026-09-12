@@ -64,8 +64,7 @@ scheduling point, and don't "improve" one in. Both are seeded at
 `HOT_INTERVAL_MINUTES` in their constructor. `DhlCoordinator`'s hottest-status
 scan must cover incoming (`coordinator.data`) **and** outgoing/returning
 (`self.returning`): a return that's `out_for_delivery` drives the tier hot too.
-The dynamic cadence is **unconditional** (Phase 2 of
-`carrier-research/dynamic-polling.md`, account-based model — maintainer
+The dynamic cadence is **unconditional** (account-based model — maintainer
 decision 2026-09-12); **don't add the interval option back.** Full model:
 [`ARCHITECTURE.md`](ARCHITECTURE.md).
 

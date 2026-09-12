@@ -139,10 +139,10 @@ Neither outgoing sensor creates per-shipment entities.
 
 ## Dynamic polling
 
-`carrier-research/dynamic-polling.md`, account-based model (Section 2.2),
-**unconditional** — Phase 2 of that rollout. There is no polling option, no
-`CONF_REFRESH_INTERVAL`, and no `POLL_INTERVAL` fallback constant; a stale
-`refresh_interval` left in an entry's stored options is simply never read.
+Account-based model, **unconditional** status-driven polling. There is no
+polling option, no `CONF_REFRESH_INTERVAL`, and no `POLL_INTERVAL` fallback
+constant; a stale `refresh_interval` left in an entry's stored options is
+simply never read.
 
 **Each coordinator recomputes its own `update_interval`** at the end of its own
 `_async_update_data`, independently. There is no shared scheduling point: they
