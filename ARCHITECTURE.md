@@ -139,18 +139,17 @@ Neither outgoing sensor creates per-shipment entities.
 
 ## Dynamic polling
 
-Phase 1 of `carrier-research/dynamic-polling.md`, account-based model
-(Section 2.2). `CONF_REFRESH_INTERVAL` accepts `15/30/60/120/240` minutes **plus `"auto"`**.
-New entries default to `"auto"` (`DEFAULT_NEW_REFRESH_INTERVAL`); an entry
-created before the option existed keeps its numeric value
-(`DEFAULT_REFRESH_INTERVAL` = 30). `POLL_INTERVAL` (900 s) survives in `const.py`
-only as a legacy hard-coded fallback — it is **not** the live cadence.
+`carrier-research/dynamic-polling.md`, account-based model (Section 2.2),
+**unconditional** — Phase 2 of that rollout. There is no polling option, no
+`CONF_REFRESH_INTERVAL`, and no `POLL_INTERVAL` fallback constant; a stale
+`refresh_interval` left in an entry's stored options is simply never read.
 
-Under `"auto"`, **each coordinator recomputes its own `update_interval`** at the
-end of its own `_async_update_data`, independently. There is no shared scheduling
-point: they are two separate `DataUpdateCoordinator` instances polled on their
-own timers. (The refresh button triggers both together; the automatic timer does
-not.)
+**Each coordinator recomputes its own `update_interval`** at the end of its own
+`_async_update_data`, independently. There is no shared scheduling point: they
+are two separate `DataUpdateCoordinator` instances polled on their own timers,
+each seeded at `HOT_INTERVAL_MINUTES` in its constructor so the first poll after
+setup is prompt. (The refresh button triggers both together; the automatic timer
+does not.)
 
 - **Hot tier** (`HOT_INTERVAL_MINUTES` 15) the moment any active parcel is
   `out_for_delivery`, starting an hour before `planned_from`, or immediately when
@@ -172,9 +171,9 @@ Surfaced in diagnostics under `"polling"`: `current_tier_minutes` /
 `update_interval_seconds` for the main coordinator,
 `sent_current_tier_minutes` / `sent_update_interval_seconds` for the sent one.
 
-**Do not build a Phase 2** (making `auto` unconditional, dropping the dropdown)
-without a separate maintainer decision — explicitly out of scope for this
-rollout.
+**Do not add a refresh-interval option back.** The suite converged on a single
+polling behaviour (maintainer decision, 2026-09-12); a per-carrier dropdown is
+drift, not a feature.
 
 ## Key design decisions
 

@@ -50,22 +50,24 @@ entry. Runtime-only; the tests don't catch a regression here.
   `async_set_unique_id` + `_abort_if_unique_id_mismatch` so a *different*
   account's credentials abort instead of silently rebinding.
 - **Options flow** has no `entry.add_update_listener` — it calls
-  `async_schedule_reload` on submit. `CONF_REFRESH_INTERVAL` =
-  15/30/60/120/240 min plus `"auto"` (dynamic, status-driven; Phase 1 of
-  `carrier-research/dynamic-polling.md`, account-based model). New entries
-  default to `"auto"`; an entry created before this option existed keeps its
-  numeric value untouched. `POLL_INTERVAL` in `const.py` is a **legacy
-  fallback constant, not the live cadence** — don't reintroduce it as one.
+  `async_schedule_reload` on submit. Two sections only: `delivered` and
+  `history`. **Polling is not configurable and must not become configurable
+  again** — no `CONF_REFRESH_INTERVAL`, no `polling` section, no
+  `POLL_INTERVAL` constant. A stale `refresh_interval` in an entry's stored
+  options is simply never read.
 
 **Two coordinators, one client — and each recomputes its own interval.**
 `DhlCoordinator` and `DhlSentShipmentsCoordinator` share one `DhlApiClient`
-(hence one session + cookie jar), but under `"auto"` each recomputes
-`update_interval` independently at the end of its own `_async_update_data` —
-there is no shared scheduling point. `DhlCoordinator`'s hottest-status scan must
-cover incoming (`coordinator.data`) **and** outgoing/returning
+(hence one session + cookie jar), but each recomputes `update_interval`
+independently at the end of its own `_async_update_data` — there is no shared
+scheduling point, and don't "improve" one in. Both are seeded at
+`HOT_INTERVAL_MINUTES` in their constructor. `DhlCoordinator`'s hottest-status
+scan must cover incoming (`coordinator.data`) **and** outgoing/returning
 (`self.returning`): a return that's `out_for_delivery` drives the tier hot too.
-Do not build a Phase 2 (making `auto` unconditional) without a separate
-maintainer decision. Full model: [`ARCHITECTURE.md`](ARCHITECTURE.md).
+The dynamic cadence is **unconditional** (Phase 2 of
+`carrier-research/dynamic-polling.md`, account-based model — maintainer
+decision 2026-09-12); **don't add the interval option back.** Full model:
+[`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 **Session recovery lives in the client, not the coordinators.** `async_get_parcels`
 / `async_get_sent_shipments` retry once after a fresh `async_login()` on 401/403,

@@ -24,15 +24,10 @@ from .const import (
     CONF_DELIVERED_FILTER_AMOUNT,
     CONF_DELIVERED_FILTER_TYPE,
     CONF_INCLUDE_HISTORY,
-    CONF_REFRESH_INTERVAL,
     DEFAULT_DELIVERED_FILTER_AMOUNT,
     DEFAULT_DELIVERED_FILTER_TYPE,
     DEFAULT_INCLUDE_HISTORY,
-    DEFAULT_NEW_REFRESH_INTERVAL,
-    DEFAULT_REFRESH_INTERVAL,
     DOMAIN,
-    REFRESH_INTERVAL_AUTO,
-    REFRESH_INTERVAL_OPTIONS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -127,11 +122,6 @@ class DhlConfigFlow(ConfigFlow, domain=DOMAIN):
                 options={
                     CONF_DELIVERED_FILTER_TYPE: user_input[CONF_DELIVERED_FILTER_TYPE],
                     CONF_DELIVERED_FILTER_AMOUNT: int(user_input[CONF_DELIVERED_FILTER_AMOUNT]),
-                    # New installs default to dynamic polling; an entry set
-                    # up before this option existed keeps reading
-                    # DEFAULT_REFRESH_INTERVAL via the coordinator's .get()
-                    # fallback instead (dynamic-polling.md Section 5.2).
-                    CONF_REFRESH_INTERVAL: DEFAULT_NEW_REFRESH_INTERVAL,
                 },
             )
 
@@ -181,13 +171,14 @@ class DhlConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class DhlOptionsFlowHandler(OptionsFlow):
-    """Handle DHL options — delivered-parcels filter plus polling cadence.
+    """Handle DHL options — delivered-parcels filter plus history opt-in.
 
     The form is rendered with two collapsible sections (``delivered`` and
-    ``polling``) so the unrelated knobs don't compete for attention. HA
+    ``history``) so the unrelated knobs don't compete for attention. HA
     returns the user input nested by section name; we flatten it before
     storing on the config entry so the coordinator can keep reading the
-    flat keys directly.
+    flat keys directly. There is no polling section — the cadence is
+    computed, not configured.
 
     Modern HA exposes ``self.config_entry`` on ``OptionsFlow`` automatically,
     so no constructor is needed to store it.
@@ -200,7 +191,6 @@ class DhlOptionsFlowHandler(OptionsFlow):
         if user_input is not None:
             delivered = user_input.get("delivered", {})
             history = user_input.get("history", {})
-            polling = user_input.get("polling", {})
             self.hass.config_entries.async_schedule_reload(self.config_entry.entry_id)
             return self.async_create_entry(
                 title="",
@@ -208,11 +198,6 @@ class DhlOptionsFlowHandler(OptionsFlow):
                     CONF_DELIVERED_FILTER_TYPE: delivered[CONF_DELIVERED_FILTER_TYPE],
                     CONF_DELIVERED_FILTER_AMOUNT: int(delivered[CONF_DELIVERED_FILTER_AMOUNT]),
                     CONF_INCLUDE_HISTORY: bool(history[CONF_INCLUDE_HISTORY]),
-                    CONF_REFRESH_INTERVAL: (
-                        REFRESH_INTERVAL_AUTO
-                        if polling[CONF_REFRESH_INTERVAL] == REFRESH_INTERVAL_AUTO
-                        else int(polling[CONF_REFRESH_INTERVAL])
-                    ),
                 },
             )
 
@@ -267,31 +252,6 @@ class DhlOptionsFlowHandler(OptionsFlow):
                                         DEFAULT_INCLUDE_HISTORY,
                                     ),
                                 ): selector.BooleanSelector(),
-                            }
-                        ),
-                        {"collapsed": True},
-                    ),
-                    vol.Required("polling"): section(
-                        vol.Schema(
-                            {
-                                vol.Required(
-                                    CONF_REFRESH_INTERVAL,
-                                    # str(): the selector's option values are
-                                    # strings, so the default must be a string
-                                    # too — a stored int won't match and trips
-                                    # "expected str" validation on submit.
-                                    default=str(current.get(
-                                        CONF_REFRESH_INTERVAL,
-                                        DEFAULT_REFRESH_INTERVAL,
-                                    )),
-                                ): selector.SelectSelector(
-                                    selector.SelectSelectorConfig(
-                                        options=[REFRESH_INTERVAL_AUTO]
-                                        + [str(m) for m in REFRESH_INTERVAL_OPTIONS],
-                                        translation_key=CONF_REFRESH_INTERVAL,
-                                        mode=selector.SelectSelectorMode.DROPDOWN,
-                                    )
-                                ),
                             }
                         ),
                         {"collapsed": True},

@@ -11,11 +11,9 @@ from custom_components.dhl_nl.const import (
     CONF_DELIVERED_FILTER_AMOUNT,
     CONF_DELIVERED_FILTER_TYPE,
     CONF_INCLUDE_HISTORY,
-    CONF_REFRESH_INTERVAL,
     HOT_INTERVAL_MINUTES,
     KNOWN_CAPABILITIES,
     MID_INTERVAL_MINUTES,
-    REFRESH_INTERVAL_AUTO,
     STAGGER_MINUTES,
     ParcelStatus,
 )
@@ -26,8 +24,6 @@ from custom_components.dhl_nl.coordinator import (
     _in_quiet_window,
     _next_anchor,
     _next_update_interval,
-    _refresh_interval,
-    _refresh_setting,
     _stagger_minutes,
 )
 from custom_components.dhl_nl.parcels import (
@@ -58,7 +54,6 @@ def _mock_entry(
     filter_amount: int = 7,
     *,
     include_history: bool = False,
-    refresh_interval: str | int | None = None,
     entry_id: str = "test-entry",
 ) -> MagicMock:
     entry = MagicMock()
@@ -68,8 +63,6 @@ def _mock_entry(
         CONF_DELIVERED_FILTER_AMOUNT: filter_amount,
         CONF_INCLUDE_HISTORY: include_history,
     }
-    if refresh_interval is not None:
-        entry.options[CONF_REFRESH_INTERVAL] = refresh_interval
     return entry
 
 
@@ -1008,23 +1001,6 @@ async def test_no_delivery_time_changed_event_when_planned_time_unchanged(hass):
 
 
 # ---------------------------------------------------------------------------
-# _refresh_interval
-# ---------------------------------------------------------------------------
-
-
-def test_refresh_interval_defaults_to_30_minutes_when_option_unset():
-    entry = MagicMock()
-    entry.options = {}
-    assert _refresh_interval(entry).total_seconds() == 30 * 60
-
-
-def test_refresh_interval_reads_minutes_from_options():
-    entry = MagicMock()
-    entry.options = {"refresh_interval": 60}
-    assert _refresh_interval(entry).total_seconds() == 60 * 60
-
-
-# ---------------------------------------------------------------------------
 # sort_parcels_by_ts
 # ---------------------------------------------------------------------------
 
@@ -1293,18 +1269,6 @@ async def test_enrich_history_best_effort_leaves_cache_on_none(hass):
 UTC = timezone.utc
 
 
-def test_refresh_interval_starts_hot_when_auto():
-    entry = MagicMock()
-    entry.options = {CONF_REFRESH_INTERVAL: REFRESH_INTERVAL_AUTO}
-    assert _refresh_interval(entry).total_seconds() == HOT_INTERVAL_MINUTES * 60
-
-
-def test_refresh_setting_passes_through_auto():
-    entry = MagicMock()
-    entry.options = {CONF_REFRESH_INTERVAL: REFRESH_INTERVAL_AUTO}
-    assert _refresh_setting(entry) == REFRESH_INTERVAL_AUTO
-
-
 def test_quiet_window_is_midnight_to_six():
     assert _in_quiet_window(datetime(2026, 1, 1, 0, 0, tzinfo=UTC))
     assert _in_quiet_window(datetime(2026, 1, 1, 5, 59, tzinfo=UTC))
@@ -1392,31 +1356,43 @@ def test_candidate_landing_in_quiet_window_clamps_to_the_midnight_anchor():
 # ---------------------------------------------------------------------------
 
 
-async def test_dhl_coordinator_auto_mode_recomputes_interval_and_never_stops(hass):
+async def test_dhl_coordinator_seeds_hot_cadence_before_the_first_refresh(hass):
+    """The constructor starts hot so the first poll after setup is prompt."""
+    coordinator = DhlCoordinator(hass, MagicMock(), _mock_entry())
+
+    assert coordinator.update_interval == timedelta(minutes=HOT_INTERVAL_MINUTES)
+    assert coordinator.current_tier_minutes is None
+
+
+async def test_dhl_coordinator_ignores_a_stale_refresh_interval_option(hass):
+    """The removed dropdown left "refresh_interval" behind in stored options.
+
+    It must never be read again — the cadence is computed, not configured.
+    """
+    client = MagicMock()
+    client.async_get_parcels = AsyncMock(return_value=[])
+    entry = _mock_entry()
+    entry.options["refresh_interval"] = 240
+
+    coordinator = DhlCoordinator(hass, client, entry)
+    await coordinator._async_update_data()
+
+    assert coordinator.current_tier_minutes == MID_INTERVAL_MINUTES
+    assert coordinator.update_interval != timedelta(minutes=240)
+
+
+async def test_dhl_coordinator_recomputes_interval_and_never_stops(hass):
     client = MagicMock()
     client.async_get_parcels = AsyncMock(return_value=[])
 
-    coordinator = DhlCoordinator(
-        hass, client, _mock_entry(refresh_interval=REFRESH_INTERVAL_AUTO)
-    )
+    coordinator = DhlCoordinator(hass, client, _mock_entry())
     await coordinator._async_update_data()
 
     assert coordinator.current_tier_minutes == MID_INTERVAL_MINUTES
     assert coordinator.update_interval is not None
 
 
-async def test_dhl_coordinator_fixed_mode_keeps_configured_interval(hass):
-    client = MagicMock()
-    client.async_get_parcels = AsyncMock(return_value=[])
-
-    coordinator = DhlCoordinator(hass, client, _mock_entry(refresh_interval=60))
-    await coordinator._async_update_data()
-
-    assert coordinator.current_tier_minutes is None
-    assert coordinator.update_interval == timedelta(minutes=60)
-
-
-async def test_dhl_coordinator_auto_goes_hot_from_incoming_out_for_delivery(hass):
+async def test_dhl_coordinator_goes_hot_from_incoming_out_for_delivery(hass):
     """Incoming (not returning) out_for_delivery drives the tier hot."""
     client = MagicMock()
     client.async_get_parcels = AsyncMock(return_value=[
@@ -1429,15 +1405,13 @@ async def test_dhl_coordinator_auto_goes_hot_from_incoming_out_for_delivery(hass
         },
     ])
 
-    coordinator = DhlCoordinator(
-        hass, client, _mock_entry(refresh_interval=REFRESH_INTERVAL_AUTO)
-    )
+    coordinator = DhlCoordinator(hass, client, _mock_entry())
     await coordinator._async_update_data()
 
     assert coordinator.current_tier_minutes == HOT_INTERVAL_MINUTES
 
 
-async def test_dhl_coordinator_auto_goes_hot_from_returning_out_for_delivery(hass):
+async def test_dhl_coordinator_goes_hot_from_returning_out_for_delivery(hass):
     """A returning (outgoing) parcel out_for_delivery also drives the tier hot —
     the hottest-status scan covers incoming AND outgoing (dynamic-polling.md
     Section 2.2 / Section 6), not just coordinator.data.
@@ -1455,9 +1429,7 @@ async def test_dhl_coordinator_auto_goes_hot_from_returning_out_for_delivery(has
         },
     ])
 
-    coordinator = DhlCoordinator(
-        hass, client, _mock_entry(refresh_interval=REFRESH_INTERVAL_AUTO)
-    )
+    coordinator = DhlCoordinator(hass, client, _mock_entry())
     await coordinator._async_update_data()
 
     assert coordinator.current_tier_minutes == HOT_INTERVAL_MINUTES
@@ -1468,31 +1440,40 @@ async def test_dhl_coordinator_auto_goes_hot_from_returning_out_for_delivery(has
 # ---------------------------------------------------------------------------
 
 
-async def test_sent_coordinator_auto_mode_recomputes_interval(hass):
+async def test_sent_coordinator_seeds_hot_cadence_before_the_first_refresh(hass):
+    """Seeded independently of DhlCoordinator — no shared scheduling point."""
+    coordinator = DhlSentShipmentsCoordinator(hass, MagicMock(), _mock_entry())
+
+    assert coordinator.update_interval == timedelta(minutes=HOT_INTERVAL_MINUTES)
+    assert coordinator.current_tier_minutes is None
+
+
+async def test_sent_coordinator_ignores_a_stale_refresh_interval_option(hass):
+    """A leftover "refresh_interval" is never read by this coordinator either."""
+    client = MagicMock()
+    client.async_get_sent_shipments = AsyncMock(return_value=[])
+    entry = _mock_entry()
+    entry.options["refresh_interval"] = 240
+
+    coordinator = DhlSentShipmentsCoordinator(hass, client, entry)
+    await coordinator._async_update_data()
+
+    assert coordinator.current_tier_minutes == MID_INTERVAL_MINUTES
+    assert coordinator.update_interval != timedelta(minutes=240)
+
+
+async def test_sent_coordinator_recomputes_interval(hass):
     client = MagicMock()
     client.async_get_sent_shipments = AsyncMock(return_value=[])
 
-    coordinator = DhlSentShipmentsCoordinator(
-        hass, client, _mock_entry(refresh_interval=REFRESH_INTERVAL_AUTO)
-    )
+    coordinator = DhlSentShipmentsCoordinator(hass, client, _mock_entry())
     await coordinator._async_update_data()
 
     assert coordinator.current_tier_minutes == MID_INTERVAL_MINUTES
     assert coordinator.update_interval is not None
 
 
-async def test_sent_coordinator_fixed_mode_keeps_configured_interval(hass):
-    client = MagicMock()
-    client.async_get_sent_shipments = AsyncMock(return_value=[])
-
-    coordinator = DhlSentShipmentsCoordinator(hass, client, _mock_entry(refresh_interval=60))
-    await coordinator._async_update_data()
-
-    assert coordinator.current_tier_minutes is None
-    assert coordinator.update_interval == timedelta(minutes=60)
-
-
-async def test_sent_coordinator_auto_goes_hot_from_out_for_delivery(hass):
+async def test_sent_coordinator_goes_hot_from_out_for_delivery(hass):
     client = MagicMock()
     client.async_get_sent_shipments = AsyncMock(return_value=[
         {
@@ -1503,9 +1484,35 @@ async def test_sent_coordinator_auto_goes_hot_from_out_for_delivery(hass):
         },
     ])
 
-    coordinator = DhlSentShipmentsCoordinator(
-        hass, client, _mock_entry(refresh_interval=REFRESH_INTERVAL_AUTO)
-    )
+    coordinator = DhlSentShipmentsCoordinator(hass, client, _mock_entry())
     await coordinator._async_update_data()
 
     assert coordinator.current_tier_minutes == HOT_INTERVAL_MINUTES
+
+
+async def test_both_coordinators_recompute_independently(hass):
+    """Each coordinator tiers on its own data — there is no shared schedule.
+
+    An out_for_delivery *incoming* parcel drives DhlCoordinator hot while the
+    sent-shipments coordinator, seeing nothing in flight, stays mid.
+    """
+    client = MagicMock()
+    client.async_get_parcels = AsyncMock(return_value=[
+        {
+            "barcode": "IN1",
+            "category": "IN_DELIVERY",
+            "isReturn": False,
+            "status": "OUT_FOR_DELIVERY",
+            "receivingTimeIndication": None,
+        },
+    ])
+    client.async_get_sent_shipments = AsyncMock(return_value=[])
+    entry = _mock_entry()
+
+    parcels = DhlCoordinator(hass, client, entry)
+    sent = DhlSentShipmentsCoordinator(hass, client, entry)
+    await parcels._async_update_data()
+    await sent._async_update_data()
+
+    assert parcels.current_tier_minutes == HOT_INTERVAL_MINUTES
+    assert sent.current_tier_minutes == MID_INTERVAL_MINUTES

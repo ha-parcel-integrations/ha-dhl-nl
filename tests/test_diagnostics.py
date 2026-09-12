@@ -142,19 +142,20 @@ async def test_diagnostics_surfaces_polling_state():
 
 
 @pytest.mark.asyncio
-async def test_diagnostics_polling_handles_fixed_interval_mode():
+async def test_diagnostics_polling_before_the_first_refresh():
+    """Both tiers are None until each coordinator has completed a refresh."""
     entry = _entry_with_runtime_data(
         current_tier_minutes=None,
-        update_interval=timedelta(minutes=30),
+        update_interval=timedelta(minutes=15),
         sent_current_tier_minutes=None,
-        sent_update_interval=timedelta(minutes=30),
+        sent_update_interval=timedelta(minutes=15),
     )
     result = await async_get_config_entry_diagnostics(MagicMock(), entry)
     assert result["polling"] == {
         "current_tier_minutes": None,
-        "update_interval_seconds": 30 * 60,
+        "update_interval_seconds": 15 * 60,
         "sent_current_tier_minutes": None,
-        "sent_update_interval_seconds": 30 * 60,
+        "sent_update_interval_seconds": 15 * 60,
     }
 
 

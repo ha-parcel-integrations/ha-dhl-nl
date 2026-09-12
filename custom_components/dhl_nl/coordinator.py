@@ -15,16 +15,13 @@ from homeassistant.util import dt as dt_util
 from .api import DhlApiClient, DhlApiError, DhlAuthError
 from .const import (
     CONF_INCLUDE_HISTORY,
-    CONF_REFRESH_INTERVAL,
     DEFAULT_INCLUDE_HISTORY,
-    DEFAULT_REFRESH_INTERVAL,
     DOMAIN,
     HOT_INTERVAL_MINUTES,
     HOT_LOOKAHEAD_HOURS,
     MID_INTERVAL_MINUTES,
     QUIET_WINDOW_END_HOUR,
     QUIET_WINDOW_START_HOUR,
-    REFRESH_INTERVAL_AUTO,
     STAGGER_MINUTES,
     ParcelStatus,
 )
@@ -42,25 +39,6 @@ from .parcels import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _refresh_setting(entry: ConfigEntry) -> str | int:
-    """Return the raw configured refresh setting — ``"auto"`` or a minute count."""
-    return entry.options.get(CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL)
-
-
-def _refresh_interval(entry: ConfigEntry) -> timedelta:
-    """Return the coordinator's *initial* update interval.
-
-    For a fixed setting this is the final word. For ``"auto"`` it is only a
-    starting point — the hot cadence, so the first poll after setup happens
-    promptly — since ``_async_update_data`` recomputes it every refresh via
-    ``_next_update_interval``.
-    """
-    setting = _refresh_setting(entry)
-    if setting == REFRESH_INTERVAL_AUTO:
-        return timedelta(minutes=HOT_INTERVAL_MINUTES)
-    return timedelta(minutes=int(setting))
 
 
 def _stagger_minutes(entry_id: str) -> int:
@@ -130,7 +108,7 @@ def _next_update_interval(now: datetime, tier_minutes: int, entry_id: str) -> ti
 
 
 class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
-    """Coordinator that polls the DHL parcels API on a fixed schedule."""
+    """Coordinator that polls the DHL parcels API on the dynamic schedule."""
 
     def __init__(self, hass: HomeAssistant, client: DhlApiClient, entry: ConfigEntry) -> None:
         """Initialise the coordinator.
@@ -139,7 +117,7 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
             hass: The Home Assistant instance.
             client: An authenticated :class:`DhlApiClient` instance.
             entry: The config entry, used to read options for the delivered
-                filter and the configured refresh interval.
+                filter and the history opt-in.
 
         """
         super().__init__(
@@ -147,7 +125,10 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
             _LOGGER,
             config_entry=entry,
             name=DOMAIN,
-            update_interval=_refresh_interval(entry),
+            # Recomputed at the end of every refresh — start on the hot
+            # cadence so the first poll after setup happens promptly,
+            # whatever it turns out to find.
+            update_interval=timedelta(minutes=HOT_INTERVAL_MINUTES),
         )
         self._client = client
         self.delivered: list[dict] = []
@@ -186,14 +167,13 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
         # sensor so users can alert on a silently-stale integration (the
         # count sensors only change when a value changes, not every poll).
         self.last_success_time: datetime | None = None
-        # Tier last computed by _hottest_tier_minutes when the refresh
-        # setting is "auto" — surfaced in diagnostics. None when polling at a
-        # fixed interval instead.
+        # Tier last computed by _hottest_tier_minutes — surfaced in
+        # diagnostics. None until the first successful refresh.
         self._current_tier_minutes: int | None = None
 
     @property
     def current_tier_minutes(self) -> int | None:
-        """Tier minutes computed on the last "auto" refresh (diagnostics only)."""
+        """Tier minutes computed on the last refresh (diagnostics only)."""
         return self._current_tier_minutes
 
     def _device_id(self) -> str | None:
@@ -298,20 +278,15 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
 
         self.last_success_time = datetime.now(timezone.utc)
 
-        setting = _refresh_setting(self.config_entry)
-        if setting == REFRESH_INTERVAL_AUTO:
-            # Hottest-status scan over incoming AND outgoing (returns), per
-            # dynamic-polling.md Section 2.2 / Section 6 — not just incoming.
-            now = dt_util.now()
-            self._current_tier_minutes = _hottest_tier_minutes(
-                normalized_active + self.returning, now
-            )
-            self.update_interval = _next_update_interval(
-                now, self._current_tier_minutes, self.config_entry.entry_id
-            )
-        else:
-            self._current_tier_minutes = None
-            self.update_interval = timedelta(minutes=int(setting))
+        # Hottest-status scan over incoming AND outgoing (returns), per
+        # dynamic-polling.md Section 2.2 / Section 6 — not just incoming.
+        now = dt_util.now()
+        self._current_tier_minutes = _hottest_tier_minutes(
+            normalized_active + self.returning, now
+        )
+        self.update_interval = _next_update_interval(
+            now, self._current_tier_minutes, self.config_entry.entry_id
+        )
 
         return normalized_active
 
@@ -481,7 +456,11 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
 
 
 class DhlSentShipmentsCoordinator(DataUpdateCoordinator[list[dict]]):
-    """Coordinator that polls the DHL sent shipments API on a fixed schedule."""
+    """Coordinator that polls the DHL sent shipments API on its own schedule.
+
+    Scheduled independently of :class:`DhlCoordinator` — the two share one
+    client, never a scheduling point.
+    """
 
     def __init__(self, hass: HomeAssistant, client: DhlApiClient, entry: ConfigEntry) -> None:
         """Initialise the coordinator.
@@ -489,7 +468,7 @@ class DhlSentShipmentsCoordinator(DataUpdateCoordinator[list[dict]]):
         Args:
             hass: The Home Assistant instance.
             client: An authenticated :class:`DhlApiClient` instance.
-            entry: The config entry, used to read the configured refresh interval.
+            entry: The config entry, used to read the delivered filter option.
 
         """
         super().__init__(
@@ -497,7 +476,10 @@ class DhlSentShipmentsCoordinator(DataUpdateCoordinator[list[dict]]):
             _LOGGER,
             config_entry=entry,
             name=f"{DOMAIN}_sent",
-            update_interval=_refresh_interval(entry),
+            # Independently recomputed at the end of this coordinator's own
+            # refresh — there is deliberately no shared scheduling point with
+            # DhlCoordinator. Starts on the hot cadence for the same reason.
+            update_interval=timedelta(minutes=HOT_INTERVAL_MINUTES),
         )
         self._client = client
         # Delivered own-sender shipments. In practice this stays empty for
@@ -506,17 +488,17 @@ class DhlSentShipmentsCoordinator(DataUpdateCoordinator[list[dict]]):
         # returns under a single "delivered outgoing" sensor without special
         # casing which data source actually has content.
         self.delivered: list[dict] = []
-        # Tier last computed by _hottest_tier_minutes when the refresh
-        # setting is "auto" — surfaced in diagnostics. None when polling at a
-        # fixed interval instead. Scanned separately from DhlCoordinator's
-        # own tier since this is an independently-scheduled coordinator; own
-        # sent shipments are almost always empty for a consumer account (see
-        # filter_active_returns), so this mostly stays MID_INTERVAL_MINUTES.
+        # Tier last computed by _hottest_tier_minutes — surfaced in
+        # diagnostics. None until the first successful refresh. Scanned
+        # separately from DhlCoordinator's own tier since this is an
+        # independently-scheduled coordinator; own sent shipments are almost
+        # always empty for a consumer account (see filter_active_returns), so
+        # this mostly stays MID_INTERVAL_MINUTES.
         self._current_tier_minutes: int | None = None
 
     @property
     def current_tier_minutes(self) -> int | None:
-        """Tier minutes computed on the last "auto" refresh (diagnostics only)."""
+        """Tier minutes computed on the last refresh (diagnostics only)."""
         return self._current_tier_minutes
 
     async def _async_update_data(self) -> list[dict]:
@@ -545,15 +527,10 @@ class DhlSentShipmentsCoordinator(DataUpdateCoordinator[list[dict]]):
             [normalize_parcel(s) for s in active], "planned_from"
         )
 
-        setting = _refresh_setting(self.config_entry)
-        if setting == REFRESH_INTERVAL_AUTO:
-            now = dt_util.now()
-            self._current_tier_minutes = _hottest_tier_minutes(normalized_active, now)
-            self.update_interval = _next_update_interval(
-                now, self._current_tier_minutes, self.config_entry.entry_id
-            )
-        else:
-            self._current_tier_minutes = None
-            self.update_interval = timedelta(minutes=int(setting))
+        now = dt_util.now()
+        self._current_tier_minutes = _hottest_tier_minutes(normalized_active, now)
+        self.update_interval = _next_update_interval(
+            now, self._current_tier_minutes, self.config_entry.entry_id
+        )
 
         return normalized_active

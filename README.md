@@ -87,18 +87,12 @@ sections:
 |---|---|
 | Include status history | Adds a `history` attribute to each parcel — the ordered list of status updates (timestamp, canonical status, original DHL event code), capped to the most recent 20. **Off by default.** The attribute is kept out of the recorder database. |
 
-### Polling
-
-| Option | Description |
-|---|---|
-| Refresh every | **Automatic**, or a fixed **15 / 30 / 60 / 120 / 240 minutes**. New installs default to Automatic; existing installs keep their current fixed value until changed. Changes take effect immediately, no HA restart needed. See [Dynamic polling](#dynamic-polling) below. |
-
 ## Dynamic polling
 
-You can set **Refresh every** to **Automatic** instead of a fixed number of
-minutes. Instead of polling DHL at the same rate around the clock, the
-integration adjusts its own cadence to what your parcels — incoming **and**
-outgoing (sent shipments and returns) — are actually doing:
+There is no refresh-interval setting. Instead of polling DHL at the same rate
+around the clock, the integration adjusts its own cadence to what your
+parcels — incoming **and** outgoing (sent shipments and returns) — are
+actually doing:
 
 - **Quiet hours** — no polling between 00:00–06:00 local time, aside from one
   catch-up check at each end of that window (around midnight and around 6
@@ -115,10 +109,9 @@ outgoing (sent shipments and returns) — are actually doing:
 Delivered/returned parcels never affect the cadence — only what's still in
 transit counts.
 
-This is opt-in for now, but it's expected to become the default — and
-eventually the only — polling behaviour across the parcel-integrations
-suite. If you try Automatic, we'd genuinely like to hear how it goes:
-share your experience in [this
+This is the only polling behaviour, and it matches the rest of the
+parcel-integrations suite. Installs that were still on a fixed interval move
+over automatically — there is nothing to change. Feedback is welcome in [this
 discussion](https://github.com/orgs/ha-parcel-integrations/discussions/12).
 
 ## Removal
