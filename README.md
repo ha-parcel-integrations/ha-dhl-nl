@@ -261,7 +261,11 @@ statuses and events.
 
 ## Disclaimer
 
-This is an independent, community-built project with no affiliation, endorsement, or connection to DHL or any of its subsidiaries. The DHL eCommerce NL API is undocumented and may change without notice. The maintainers have not asked DHL for permission to use this API; installing this integration may breach DHL's Terms of Service. You take any risk that follows — account suspension, service disruption, etc. No warranty (see [LICENSE](LICENSE)).
+This is an independent, community-built project. It is not affiliated with, endorsed by, sponsored by, or supported by DHL, Home Assistant, or any other third party referenced in this project. Please don't contact DHL for support with this integration.
+
+All third-party trademarks, trade names, product names, logos, and other brand assets are the property of their respective owners. References to them are solely to identify the relevant carrier or service and do not imply affiliation, sponsorship, or endorsement. Nothing in this project grants or implies any licence or right to use third-party brand assets.
+
+This integration may rely on public, unofficial, or undocumented carrier interfaces, accessed with your own account or API key where required. These may change or be withdrawn without notice and may be subject to DHL's terms. Data is sent only to DHL's own services or those of its group; this project operates no servers of its own. You are responsible for ensuring that your use complies with applicable law and those terms. Use is at your own risk; see the [licence](LICENSE) for warranty limitations.
 
 ## Contributing
 
