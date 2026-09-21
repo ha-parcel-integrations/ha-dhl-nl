@@ -225,7 +225,12 @@ def map_parcel_status(parcel: dict) -> ParcelStatus:
     raw_category = parcel.get("category") or ""
 
     if raw_status in _STATUS_MAP:
-        return _STATUS_MAP[raw_status]
+        mapped = _STATUS_MAP[raw_status]
+        # A return that reached the shipper is finished: the category says
+        # DELIVERED, so the status must agree with ``delivered``.
+        if mapped == ParcelStatus.RETURNING and raw_category == "DELIVERED":
+            return ParcelStatus.DELIVERED
+        return mapped
 
     # raw_status itself is unmapped — per the parcel contract this always
     # gets a one-shot warning, even when the category fallback below still

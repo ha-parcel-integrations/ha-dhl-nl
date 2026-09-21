@@ -118,6 +118,8 @@ def test_other_intervention_still_maps_to_problem():
         ("RECEIVER_UNKNOWN_RETURN", "INTERVENTION", ParcelStatus.RETURNING),
         ("STORAGE_PERIOD_ENDED_AT_PARCELSHOP", "UNDERWAY", ParcelStatus.RETURNING),
         ("ON_ROUTE_TO_SHIPPER", "UNDERWAY", ParcelStatus.RETURNING),
+        ("RETURN_DELIVERED_AT_SHIPPER_CALCULATED", "DELIVERED", ParcelStatus.DELIVERED),
+        ("RETURN_DELIVERED_AT_SHIPPER_CALCULATED", "UNDERWAY", ParcelStatus.RETURNING),
     ],
 )
 def test_granular_status_overrides_category(status, category, expected):
