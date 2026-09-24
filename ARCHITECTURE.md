@@ -128,8 +128,8 @@ Both coordinators raise `UpdateFailed` on any `DhlApiError` or
 | `DhlIncomingParcelsSensor` | summary of active incoming; also owns per-parcel entity lifecycle |
 | `DhlParcelSensor` | one entity per active incoming parcel, keyed by barcode |
 | `DhlNextDeliverySensor` | earliest `receivingTimeIndication.moment` across active parcels (TIMESTAMP) |
-| `DhlEnRouteToServicePointSensor` | active pickup-point parcels not yet notified |
-| `DhlPickupPendingSensor` | active pickup-point parcels already notified (arrived, awaiting collection) |
+| `DhlEnRouteToPickupPointSensor` | active pickup-point parcels not yet arrived |
+| `DhlAwaitingPickupSensor` | active pickup-point parcels already arrived (awaiting collection) |
 | `DhlDeliveredParcelsSensor` | `coordinator.delivered` |
 | `DhlSentShipmentsSensor` | `sent_coordinator.data` + `coordinator.returning` |
 | `DhlOutgoingDeliveredSensor` | `sent_coordinator.delivered` + `coordinator.delivered_outgoing` |
@@ -298,8 +298,8 @@ on `ParcelStatus.AT_PICKUP_POINT`.
 | `DhlIncomingParcelsSensor` | `{user_id}_incoming_parcels` | `abc123_incoming_parcels` |
 | `DhlParcelSensor` | `{user_id}_{barcode}` | `abc123_JVGL0123456789012345` |
 | `DhlNextDeliverySensor` | `{user_id}_next_delivery` | `abc123_next_delivery` |
-| `DhlEnRouteToServicePointSensor` | `{user_id}_en_route_to_service_point` | `abc123_en_route_to_service_point` |
-| `DhlPickupPendingSensor` | `{user_id}_pickup_pending` | `abc123_pickup_pending` |
+| `DhlEnRouteToPickupPointSensor` | `{user_id}_en_route_to_pickup_point` | `abc123_en_route_to_pickup_point` |
+| `DhlAwaitingPickupSensor` | `{user_id}_awaiting_pickup` | `abc123_awaiting_pickup` |
 | `DhlDeliveredParcelsSensor` | `{user_id}_delivered_parcels` | `abc123_delivered_parcels` |
 | `DhlSentShipmentsSensor` | `{user_id}_outgoing_parcels` | `abc123_outgoing_parcels` |
 | `DhlOutgoingDeliveredSensor` | `{user_id}_outgoing_delivered_parcels` | `abc123_outgoing_delivered_parcels` |

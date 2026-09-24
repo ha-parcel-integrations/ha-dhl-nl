@@ -28,6 +28,26 @@ _LOGGER = logging.getLogger(__name__)
 PARALLEL_UPDATES = 0
 
 
+def _migrate_summary_unique_ids(registry: er.EntityRegistry, user_id: str) -> None:
+    """Preserve entity customisations while adopting canonical pickup IDs."""
+    for old_suffix, new_suffix in (
+        ("en_route_to_service_point", "en_route_to_pickup_point"),
+        ("pickup_pending", "awaiting_pickup"),
+    ):
+        old_unique_id = f"{user_id}_{old_suffix}"
+        new_unique_id = f"{user_id}_{new_suffix}"
+        old_entity_id = registry.async_get_entity_id("sensor", DOMAIN, old_unique_id)
+        if old_entity_id is None:
+            continue
+        if registry.async_get_entity_id("sensor", DOMAIN, new_unique_id) is not None:
+            _LOGGER.warning(
+                "Both legacy and canonical pickup summary entities exist; "
+                "reconcile %s and %s manually", old_unique_id, new_unique_id
+            )
+            continue
+        registry.async_update_entity(old_entity_id, new_unique_id=new_unique_id)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: DhlConfigEntry,
@@ -62,11 +82,14 @@ async def async_setup_entry(
     # Remove per-parcel sensors from the entity registry that are no longer
     # active — handles parcels that were delivered between HA restarts.
     registry = er.async_get(hass)
+    _migrate_summary_unique_ids(registry, user_id)
     non_parcel_unique_ids = {
         f"{user_id}_incoming_parcels",
         f"{user_id}_next_delivery",
-        f"{user_id}_pickup_pending",
-        f"{user_id}_en_route_to_service_point",
+        f"{user_id}_awaiting_pickup",
+        f"{user_id}_en_route_to_pickup_point",
+        f"{user_id}_pickup_pending",  # collision: preserve for reconciliation
+        f"{user_id}_en_route_to_service_point",  # collision: preserve for reconciliation
         f"{user_id}_outgoing_parcels",
         f"{user_id}_outgoing_delivered_parcels",
         f"{user_id}_delivered_parcels",
@@ -106,8 +129,8 @@ async def async_setup_entry(
         )
 
     entities.append(DhlNextDeliverySensor(coordinator=coordinator, user_info=user_info))
-    entities.append(DhlEnRouteToServicePointSensor(coordinator=coordinator, user_info=user_info))
-    entities.append(DhlPickupPendingSensor(coordinator=coordinator, user_info=user_info))
+    entities.append(DhlEnRouteToPickupPointSensor(coordinator=coordinator, user_info=user_info))
+    entities.append(DhlAwaitingPickupSensor(coordinator=coordinator, user_info=user_info))
     entities.append(DhlDeliveredParcelsSensor(coordinator=coordinator, user_info=user_info))
     entities.append(DhlLastUpdateSensor(coordinator=coordinator, user_info=user_info))
 
@@ -459,7 +482,7 @@ class DhlNextDeliverySensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
         }
 
 
-class DhlEnRouteToServicePointSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
+class DhlEnRouteToPickupPointSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     """Sensor reporting parcels still in transit to a DHL ServicePoint.
 
     A parcel is counted when its destination ``locationType`` is ``SERVICEPOINT``
@@ -469,7 +492,7 @@ class DhlEnRouteToServicePointSensor(CoordinatorEntity[DhlCoordinator], SensorEn
     """
 
     _attr_has_entity_name = True
-    _attr_translation_key = "en_route_to_service_point"
+    _attr_translation_key = "en_route_to_pickup_point"
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_attribution = ATTRIBUTION
     _unrecorded_attributes = frozenset({"parcels"})
@@ -483,7 +506,7 @@ class DhlEnRouteToServicePointSensor(CoordinatorEntity[DhlCoordinator], SensorEn
         super().__init__(coordinator)
         self._user_info = user_info
         user_id: str = user_info.get("userId", "")
-        self._attr_unique_id = f"{user_id}_en_route_to_service_point"
+        self._attr_unique_id = f"{user_id}_en_route_to_pickup_point"
         self._attr_device_info = build_device_info(user_info)
 
     def _get_en_route_parcels(self) -> list[dict]:
@@ -505,7 +528,7 @@ class DhlEnRouteToServicePointSensor(CoordinatorEntity[DhlCoordinator], SensorEn
         return {"parcels": self._get_en_route_parcels()}
 
 
-class DhlPickupPendingSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
+class DhlAwaitingPickupSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     """Sensor reporting the number of parcels waiting to be collected at a ServicePoint.
 
     A parcel is counted when its destination ``locationType`` is ``SERVICEPOINT``
@@ -528,15 +551,14 @@ class DhlPickupPendingSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
         super().__init__(coordinator)
         self._user_info = user_info
         user_id: str = user_info.get("userId", "")
-        self._attr_unique_id = f"{user_id}_pickup_pending"
+        self._attr_unique_id = f"{user_id}_awaiting_pickup"
         self._attr_device_info = build_device_info(user_info)
 
     def _get_pickup_parcels(self) -> list[dict]:
         """Return parcels that have arrived at a ServicePoint and are ready for collection."""
         return [
             p for p in (self.coordinator.data or [])
-            if p.get("pickup")
-            and p.get("status") == ParcelStatus.AT_PICKUP_POINT
+            if p.get("status") == ParcelStatus.AT_PICKUP_POINT
         ]
 
     @property

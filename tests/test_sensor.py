@@ -3,21 +3,24 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from homeassistant.helpers import entity_registry as er
 
 from custom_components.dhl_nl.const import (
+    DOMAIN,
     STATUS_AT_SERVICE_POINT,
     ParcelStatus,
 )
 from custom_components.dhl_nl.coordinator import normalize_parcel
 from custom_components.dhl_nl.sensor import (
+    DhlAwaitingPickupSensor,
     DhlDeliveredParcelsSensor,
-    DhlEnRouteToServicePointSensor,
+    DhlEnRouteToPickupPointSensor,
     DhlIncomingParcelsSensor,
     DhlNextDeliverySensor,
     DhlOutgoingDeliveredSensor,
     DhlParcelSensor,
-    DhlPickupPendingSensor,
     DhlSentShipmentsSensor,
+    _migrate_summary_unique_ids,
 )
 
 from .payloads import (
@@ -176,7 +179,7 @@ def test_next_delivery_skips_unknown_indication_type():
 
 
 # ---------------------------------------------------------------------------
-# DhlEnRouteToServicePointSensor
+# DhlEnRouteToPickupPointSensor
 # ---------------------------------------------------------------------------
 
 def test_en_route_counts_servicepoint_parcels_in_transit():
@@ -184,45 +187,45 @@ def test_en_route_counts_servicepoint_parcels_in_transit():
         _parcel("A", location_type="SERVICEPOINT", status="IN_DELIVERY"),
         _parcel("B", location_type="ADDRESS", status="IN_DELIVERY"),
     ]
-    sensor = DhlEnRouteToServicePointSensor(_make_coordinator(parcels), USER_INFO)
+    sensor = DhlEnRouteToPickupPointSensor(_make_coordinator(parcels), USER_INFO)
     assert sensor.native_value == 1
 
 
 def test_en_route_excludes_arrived_at_servicepoint():
     parcel = _parcel(location_type="SERVICEPOINT", status=STATUS_AT_SERVICE_POINT)
-    sensor = DhlEnRouteToServicePointSensor(_make_coordinator([parcel]), USER_INFO)
+    sensor = DhlEnRouteToPickupPointSensor(_make_coordinator([parcel]), USER_INFO)
     assert sensor.native_value == 0
 
 
 def test_en_route_zero_when_no_parcels():
-    sensor = DhlEnRouteToServicePointSensor(_make_coordinator([]), USER_INFO)
+    sensor = DhlEnRouteToPickupPointSensor(_make_coordinator([]), USER_INFO)
     assert sensor.native_value == 0
 
 
 # ---------------------------------------------------------------------------
-# DhlPickupPendingSensor
+# DhlAwaitingPickupSensor
 # ---------------------------------------------------------------------------
 
-def test_pickup_pending_counts_arrived_parcels():
+def test_awaiting_pickup_counts_arrived_parcels():
     parcel = _parcel(location_type="SERVICEPOINT", status=STATUS_AT_SERVICE_POINT)
-    sensor = DhlPickupPendingSensor(_make_coordinator([parcel]), USER_INFO)
+    sensor = DhlAwaitingPickupSensor(_make_coordinator([parcel]), USER_INFO)
     assert sensor.native_value == 1
 
 
-def test_pickup_pending_excludes_in_transit_servicepoint():
+def test_awaiting_pickup_excludes_in_transit_servicepoint():
     parcel = _parcel(location_type="SERVICEPOINT", status="IN_DELIVERY")
-    sensor = DhlPickupPendingSensor(_make_coordinator([parcel]), USER_INFO)
+    sensor = DhlAwaitingPickupSensor(_make_coordinator([parcel]), USER_INFO)
     assert sensor.native_value == 0
 
 
-def test_pickup_pending_excludes_home_address_parcels():
+def test_awaiting_pickup_is_defined_by_canonical_status():
     parcel = _parcel(location_type="ADDRESS", status=STATUS_AT_SERVICE_POINT)
-    sensor = DhlPickupPendingSensor(_make_coordinator([parcel]), USER_INFO)
-    assert sensor.native_value == 0
+    sensor = DhlAwaitingPickupSensor(_make_coordinator([parcel]), USER_INFO)
+    assert sensor.native_value == 1
 
 
-def test_pickup_pending_zero_when_no_parcels():
-    sensor = DhlPickupPendingSensor(_make_coordinator([]), USER_INFO)
+def test_awaiting_pickup_zero_when_no_parcels():
+    sensor = DhlAwaitingPickupSensor(_make_coordinator([]), USER_INFO)
     assert sensor.native_value == 0
 
 
@@ -384,3 +387,57 @@ def test_last_update_sensor_none_before_first_success():
     coordinator.last_success_time = None
     sensor = DhlLastUpdateSensor(coordinator, USER_INFO)
     assert sensor.native_value is None
+
+
+# ---------------------------------------------------------------------------
+# Canonical pickup-summary unique-ID migration
+# ---------------------------------------------------------------------------
+
+_SCOPE = "user123"
+_RENAMES = [
+    ("en_route_to_service_point", "en_route_to_pickup_point"),
+    ("pickup_pending", "awaiting_pickup"),
+]
+
+
+@pytest.mark.parametrize(("old_suffix", "new_suffix"), _RENAMES)
+async def test_migration_keeps_custom_entity_id(hass, old_suffix, new_suffix):
+    registry = er.async_get(hass)
+    old = registry.async_get_or_create("sensor", DOMAIN, f"{_SCOPE}_{old_suffix}")
+    registry.async_update_entity(old.entity_id, new_entity_id="sensor.my_pickup_parcels")
+
+    _migrate_summary_unique_ids(registry, _SCOPE)
+
+    new_id = registry.async_get_entity_id("sensor", DOMAIN, f"{_SCOPE}_{new_suffix}")
+    assert new_id == "sensor.my_pickup_parcels"
+    assert registry.async_get_entity_id("sensor", DOMAIN, f"{_SCOPE}_{old_suffix}") is None
+
+
+@pytest.mark.parametrize(("old_suffix", "new_suffix"), _RENAMES)
+async def test_migration_is_idempotent(hass, old_suffix, new_suffix):
+    registry = er.async_get(hass)
+    old = registry.async_get_or_create("sensor", DOMAIN, f"{_SCOPE}_{old_suffix}")
+
+    _migrate_summary_unique_ids(registry, _SCOPE)
+    _migrate_summary_unique_ids(registry, _SCOPE)
+
+    new_id = registry.async_get_entity_id("sensor", DOMAIN, f"{_SCOPE}_{new_suffix}")
+    assert new_id == old.entity_id
+    assert len(registry.entities) == 1
+
+
+@pytest.mark.parametrize(("old_suffix", "new_suffix"), _RENAMES)
+async def test_migration_collision_keeps_both_and_warns(
+    hass, caplog, old_suffix, new_suffix
+):
+    registry = er.async_get(hass)
+    old = registry.async_get_or_create("sensor", DOMAIN, f"{_SCOPE}_{old_suffix}")
+    new = registry.async_get_or_create("sensor", DOMAIN, f"{_SCOPE}_{new_suffix}")
+
+    _migrate_summary_unique_ids(registry, _SCOPE)
+
+    old_id = registry.async_get_entity_id("sensor", DOMAIN, f"{_SCOPE}_{old_suffix}")
+    new_id = registry.async_get_entity_id("sensor", DOMAIN, f"{_SCOPE}_{new_suffix}")
+    assert old_id == old.entity_id
+    assert new_id == new.entity_id
+    assert "reconcile" in caplog.text
