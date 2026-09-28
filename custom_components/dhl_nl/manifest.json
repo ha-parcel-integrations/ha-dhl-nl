@@ -1,7 +1,7 @@
 {
   "domain": "dhl_nl",
   "name": "DHL NL",
-  "codeowners": ["@peternijssen"],
+  "codeowners": ["@peter-mdf"],
   "config_flow": true,
   "documentation": "https://github.com/ha-parcel-integrations/ha-dhl-nl",
   "integration_type": "hub",
