@@ -9,7 +9,7 @@ Three places hold the knowledge, and they do not overlap:
 | What | Where |
 |---|---|
 | How this integration is built, and why it is built that way | [`ARCHITECTURE.md`](ARCHITECTURE.md) — read it before touching either coordinator, the outgoing/returns split, or the polling model |
-| Endpoint mechanics, params, status vocabularies | `carrier-research/dhl/api/dhl-nl/` (private repo) — the parcels / sent-shipments / track-trace endpoints, their params and content types, the DHL status/category → `ParcelStatus` vocabulary. **Never** duplicated into this repo |
+| Endpoint mechanics, params, status vocabularies | `carrier-research/dhl/api/dhl-nl/` (private repo). **Never** duplicated into this repo |
 | Suite-wide conventions | [`.github/CONVENTIONS.md`](https://github.com/ha-parcel-integrations/.github/blob/main/CONVENTIONS.md) |
 
 This file is the short list of things an agent must not get wrong.
