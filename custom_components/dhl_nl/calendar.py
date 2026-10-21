@@ -1,4 +1,5 @@
 """Calendar platform for the DHL Package Tracker integration."""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -22,8 +23,6 @@ PARALLEL_UPDATES = 0
 _DEFAULT_EVENT_DURATION = timedelta(hours=1)
 
 
-
-
 def _parse(value: str | None) -> datetime | None:
     """Parse an ISO 8601 string into a timezone-aware datetime, or ``None``."""
     if not value:
@@ -43,9 +42,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up the DHL deliveries calendar from a config entry."""
     data = entry.runtime_data
-    async_add_entities(
-        [DhlDeliveriesCalendar(data.coordinator, data.user_info)]
-    )
+    async_add_entities([DhlDeliveriesCalendar(data.coordinator, data.user_info)])
 
 
 class DhlDeliveriesCalendar(CoordinatorEntity[DhlCoordinator], CalendarEntity):
@@ -62,9 +59,7 @@ class DhlDeliveriesCalendar(CoordinatorEntity[DhlCoordinator], CalendarEntity):
     _attr_translation_key = "deliveries"
     _attr_attribution = ATTRIBUTION
 
-    def __init__(
-        self, coordinator: DhlCoordinator, user_info: dict[str, Any]
-    ) -> None:
+    def __init__(self, coordinator: DhlCoordinator, user_info: dict[str, Any]) -> None:
         """Initialise the deliveries calendar."""
         super().__init__(coordinator)
         user_id: str = user_info.get("userId", "")

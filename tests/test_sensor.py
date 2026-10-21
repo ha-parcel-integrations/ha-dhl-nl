@@ -1,21 +1,19 @@
 """Tests for DHL sensor property logic."""
-from datetime import datetime, timezone
+
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from homeassistant.helpers import entity_registry as er
+import pytest
 
-from custom_components.dhl_nl.const import (
-    DOMAIN,
-    STATUS_AT_SERVICE_POINT,
-    ParcelStatus,
-)
+from custom_components.dhl_nl.const import DOMAIN, STATUS_AT_SERVICE_POINT, ParcelStatus
 from custom_components.dhl_nl.coordinator import normalize_parcel
 from custom_components.dhl_nl.sensor import (
     DhlAwaitingPickupSensor,
     DhlDeliveredParcelsSensor,
     DhlEnRouteToPickupPointSensor,
     DhlIncomingParcelsSensor,
+    DhlLastUpdateSensor,
     DhlNextDeliverySensor,
     DhlOutgoingDeliveredSensor,
     DhlParcelSensor,
@@ -65,6 +63,7 @@ def _parcel(
 # DhlParcelSensor
 # ---------------------------------------------------------------------------
 
+
 def test_parcel_sensor_returns_normalized_status():
     """Per-parcel sensor state is the canonical ParcelStatus enum value."""
     parcel = _parcel(barcode="ABC", status="OUT_FOR_DELIVERY", category="IN_DELIVERY")
@@ -81,7 +80,9 @@ def test_parcel_sensor_exposes_raw_status_in_attributes():
 
 
 def test_parcel_sensor_returns_none_when_barcode_missing():
-    sensor = DhlParcelSensor(_make_coordinator([_parcel("OTHER")]), USER_INFO, "MISSING")
+    sensor = DhlParcelSensor(
+        _make_coordinator([_parcel("OTHER")]), USER_INFO, "MISSING"
+    )
     assert sensor.native_value is None
 
 
@@ -94,6 +95,7 @@ def test_parcel_sensor_attributes_contain_full_parcel():
 # ---------------------------------------------------------------------------
 # DhlIncomingParcelsSensor — per-parcel sensor lifecycle
 # ---------------------------------------------------------------------------
+
 
 def test_summary_sensor_removes_stale_per_parcel_entity_from_registry():
     """When a barcode falls out of coordinator data, the summary sensor must
@@ -114,11 +116,14 @@ def test_summary_sensor_removes_stale_per_parcel_entity_from_registry():
     registry = MagicMock()
     registry.async_get_entity_id.return_value = "sensor.dhl_parcel_a2"
 
-    with patch(
-        "custom_components.dhl_nl.sensor.er.async_get",
-        return_value=registry,
-    ), patch.object(
-        DhlIncomingParcelsSensor.__bases__[0], "_handle_coordinator_update"
+    with (
+        patch(
+            "custom_components.dhl_nl.sensor.er.async_get",
+            return_value=registry,
+        ),
+        patch.object(
+            DhlIncomingParcelsSensor.__bases__[0], "_handle_coordinator_update"
+        ),
     ):
         summary._handle_coordinator_update()
 
@@ -132,34 +137,51 @@ def test_summary_sensor_removes_stale_per_parcel_entity_from_registry():
 # DhlNextDeliverySensor — MomentIndication
 # ---------------------------------------------------------------------------
 
+
 def test_next_delivery_moment_indication():
-    parcel = _parcel(indication={
-        "indicationType": "MomentIndication",
-        "moment": "2026-05-20T10:00:00Z",
-    })
+    parcel = _parcel(
+        indication={
+            "indicationType": "MomentIndication",
+            "moment": "2026-05-20T10:00:00Z",
+        }
+    )
     sensor = DhlNextDeliverySensor(_make_coordinator([parcel]), USER_INFO)
     result = sensor.native_value
-    assert result == datetime(2026, 5, 20, 10, 0, 0, tzinfo=timezone.utc)
+    assert result == datetime(2026, 5, 20, 10, 0, 0, tzinfo=UTC)
 
 
 def test_next_delivery_interval_indication_uses_start():
-    parcel = _parcel(indication={
-        "indicationType": "IntervalIndication",
-        "start": "2026-05-20T08:00:00Z",
-        "end": "2026-05-20T16:00:00Z",
-    })
+    parcel = _parcel(
+        indication={
+            "indicationType": "IntervalIndication",
+            "start": "2026-05-20T08:00:00Z",
+            "end": "2026-05-20T16:00:00Z",
+        }
+    )
     sensor = DhlNextDeliverySensor(_make_coordinator([parcel]), USER_INFO)
     result = sensor.native_value
-    assert result == datetime(2026, 5, 20, 8, 0, 0, tzinfo=timezone.utc)
+    assert result == datetime(2026, 5, 20, 8, 0, 0, tzinfo=UTC)
 
 
 def test_next_delivery_picks_earliest_of_multiple_parcels():
     parcels = [
-        _parcel("A", indication={"indicationType": "MomentIndication", "moment": "2026-05-22T10:00:00Z"}),
-        _parcel("B", indication={"indicationType": "MomentIndication", "moment": "2026-05-20T10:00:00Z"}),
+        _parcel(
+            "A",
+            indication={
+                "indicationType": "MomentIndication",
+                "moment": "2026-05-22T10:00:00Z",
+            },
+        ),
+        _parcel(
+            "B",
+            indication={
+                "indicationType": "MomentIndication",
+                "moment": "2026-05-20T10:00:00Z",
+            },
+        ),
     ]
     sensor = DhlNextDeliverySensor(_make_coordinator(parcels), USER_INFO)
-    assert sensor.native_value == datetime(2026, 5, 20, 10, 0, 0, tzinfo=timezone.utc)
+    assert sensor.native_value == datetime(2026, 5, 20, 10, 0, 0, tzinfo=UTC)
 
 
 def test_next_delivery_none_when_no_indication():
@@ -173,7 +195,9 @@ def test_next_delivery_none_when_no_parcels():
 
 
 def test_next_delivery_skips_unknown_indication_type():
-    parcel = _parcel(indication={"indicationType": "UnknownType", "moment": "2026-05-20T10:00:00Z"})
+    parcel = _parcel(
+        indication={"indicationType": "UnknownType", "moment": "2026-05-20T10:00:00Z"}
+    )
     sensor = DhlNextDeliverySensor(_make_coordinator([parcel]), USER_INFO)
     assert sensor.native_value is None
 
@@ -181,6 +205,7 @@ def test_next_delivery_skips_unknown_indication_type():
 # ---------------------------------------------------------------------------
 # DhlEnRouteToPickupPointSensor
 # ---------------------------------------------------------------------------
+
 
 def test_en_route_counts_servicepoint_parcels_in_transit():
     parcels = [
@@ -205,6 +230,7 @@ def test_en_route_zero_when_no_parcels():
 # ---------------------------------------------------------------------------
 # DhlAwaitingPickupSensor
 # ---------------------------------------------------------------------------
+
 
 def test_awaiting_pickup_counts_arrived_parcels():
     parcel = _parcel(location_type="SERVICEPOINT", status=STATUS_AT_SERVICE_POINT)
@@ -295,7 +321,9 @@ def _make_sent_coordinator(data=None, delivered=None) -> MagicMock:
 
 def test_outgoing_sensor_counts_returns_only_when_sent_coordinator_empty():
     """The common case: the sent-shipments endpoint is empty, returns are not."""
-    coordinator = _make_coordinator([], returning=[_return_parcel("A"), _return_parcel("B")])
+    coordinator = _make_coordinator(
+        [], returning=[_return_parcel("A"), _return_parcel("B")]
+    )
     sensor = DhlSentShipmentsSensor(coordinator, _make_sent_coordinator(), USER_INFO)
     assert sensor.native_value == 2
 
@@ -310,7 +338,9 @@ def test_outgoing_sensor_merges_sent_shipments_and_returns():
 
 
 def test_outgoing_sensor_zero_when_both_sources_empty():
-    sensor = DhlSentShipmentsSensor(_make_coordinator([]), _make_sent_coordinator(), USER_INFO)
+    sensor = DhlSentShipmentsSensor(
+        _make_coordinator([]), _make_sent_coordinator(), USER_INFO
+    )
     assert sensor.native_value == 0
 
 
@@ -320,12 +350,16 @@ def test_outgoing_delivered_sensor_counts_delivered_returns_only_when_sent_empty
         _return_parcel("B", category="DELIVERED"),
     ]
     coordinator = _make_coordinator([], delivered_outgoing=delivered_outgoing)
-    sensor = DhlOutgoingDeliveredSensor(coordinator, _make_sent_coordinator(), USER_INFO)
+    sensor = DhlOutgoingDeliveredSensor(
+        coordinator, _make_sent_coordinator(), USER_INFO
+    )
     assert sensor.native_value == 2
 
 
 def test_outgoing_delivered_sensor_merges_both_sources():
-    coordinator = _make_coordinator([], delivered_outgoing=[_return_parcel("A", category="DELIVERED")])
+    coordinator = _make_coordinator(
+        [], delivered_outgoing=[_return_parcel("A", category="DELIVERED")]
+    )
     sent_coordinator = _make_sent_coordinator(delivered=[_sent_shipment("B")])
     sensor = DhlOutgoingDeliveredSensor(coordinator, sent_coordinator, USER_INFO)
     assert sensor.native_value == 2
@@ -334,19 +368,27 @@ def test_outgoing_delivered_sensor_merges_both_sources():
 
 
 def test_outgoing_delivered_sensor_zero_when_both_sources_empty():
-    sensor = DhlOutgoingDeliveredSensor(_make_coordinator([]), _make_sent_coordinator(), USER_INFO)
+    sensor = DhlOutgoingDeliveredSensor(
+        _make_coordinator([]), _make_sent_coordinator(), USER_INFO
+    )
     assert sensor.native_value == 0
 
 
 def test_outgoing_delivered_sensor_attributes_include_delivered_flag():
-    coordinator = _make_coordinator([], delivered_outgoing=[_return_parcel("RET2", category="DELIVERED")])
-    sensor = DhlOutgoingDeliveredSensor(coordinator, _make_sent_coordinator(), USER_INFO)
+    coordinator = _make_coordinator(
+        [], delivered_outgoing=[_return_parcel("RET2", category="DELIVERED")]
+    )
+    sensor = DhlOutgoingDeliveredSensor(
+        coordinator, _make_sent_coordinator(), USER_INFO
+    )
     attrs = sensor.extra_state_attributes
     assert attrs["parcels"][0]["barcode"] == "RET2"
     assert attrs["parcels"][0]["delivered"] is True
 
 
-@pytest.mark.parametrize("sensor_cls", [DhlSentShipmentsSensor, DhlOutgoingDeliveredSensor])
+@pytest.mark.parametrize(
+    "sensor_cls", [DhlSentShipmentsSensor, DhlOutgoingDeliveredSensor]
+)
 async def test_outgoing_sensor_also_subscribes_to_sent_coordinator(sensor_cls):
     """Each outgoing sensor reads from both coordinators, so it must also
     listen to the sent-shipments coordinator, not just the main one.
@@ -359,7 +401,9 @@ async def test_outgoing_sensor_also_subscribes_to_sent_coordinator(sensor_cls):
         AsyncMock(),
     ):
         await sensor.async_added_to_hass()
-    sent_coordinator.async_add_listener.assert_called_once_with(sensor.async_write_ha_state)
+    sent_coordinator.async_add_listener.assert_called_once_with(
+        sensor.async_write_ha_state
+    )
     sensor.async_on_remove.assert_called_once()
 
 
@@ -369,20 +413,14 @@ async def test_outgoing_sensor_also_subscribes_to_sent_coordinator(sensor_cls):
 
 
 def test_last_update_sensor_reports_coordinator_timestamp():
-    from datetime import datetime, timezone
-
-    from custom_components.dhl_nl.sensor import DhlLastUpdateSensor
-
     coordinator = _make_coordinator([])
-    moment = datetime(2026, 6, 30, 12, 0, tzinfo=timezone.utc)
+    moment = datetime(2026, 6, 30, 12, 0, tzinfo=UTC)
     coordinator.last_success_time = moment
     sensor = DhlLastUpdateSensor(coordinator, USER_INFO)
     assert sensor.native_value == moment
 
 
 def test_last_update_sensor_none_before_first_success():
-    from custom_components.dhl_nl.sensor import DhlLastUpdateSensor
-
     coordinator = _make_coordinator([])
     coordinator.last_success_time = None
     sensor = DhlLastUpdateSensor(coordinator, USER_INFO)
@@ -404,13 +442,17 @@ _RENAMES = [
 async def test_migration_keeps_custom_entity_id(hass, old_suffix, new_suffix):
     registry = er.async_get(hass)
     old = registry.async_get_or_create("sensor", DOMAIN, f"{_SCOPE}_{old_suffix}")
-    registry.async_update_entity(old.entity_id, new_entity_id="sensor.my_pickup_parcels")
+    registry.async_update_entity(
+        old.entity_id, new_entity_id="sensor.my_pickup_parcels"
+    )
 
     _migrate_summary_unique_ids(registry, _SCOPE)
 
     new_id = registry.async_get_entity_id("sensor", DOMAIN, f"{_SCOPE}_{new_suffix}")
     assert new_id == "sensor.my_pickup_parcels"
-    assert registry.async_get_entity_id("sensor", DOMAIN, f"{_SCOPE}_{old_suffix}") is None
+    assert (
+        registry.async_get_entity_id("sensor", DOMAIN, f"{_SCOPE}_{old_suffix}") is None
+    )
 
 
 @pytest.mark.parametrize(("old_suffix", "new_suffix"), _RENAMES)

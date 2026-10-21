@@ -1,8 +1,11 @@
 """Tests for the DHL refresh button."""
+
 from unittest.mock import AsyncMock, patch
 
-import pytest
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
+from homeassistant.helpers import entity_registry as er
+import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.dhl_nl.const import (
     CONF_DELIVERED_FILTER_AMOUNT,
@@ -15,8 +18,6 @@ _USER_INFO = {"userId": "abc123", "email": _ENTRY_DATA[CONF_EMAIL]}
 
 
 def _add_entry(hass):
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
-
     entry = MockConfigEntry(
         domain=DOMAIN,
         unique_id=_ENTRY_DATA[CONF_EMAIL],
@@ -50,8 +51,6 @@ async def test_refresh_button_forces_a_poll(hass):
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
-
-        from homeassistant.helpers import entity_registry as er
 
         registry = er.async_get(hass)
         entity_id = registry.async_get_entity_id(

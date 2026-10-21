@@ -1,8 +1,9 @@
 """Sensor platform for the DHL Package Tracker integration."""
+
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import logging
-from datetime import datetime, timezone
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -42,7 +43,9 @@ def _migrate_summary_unique_ids(registry: er.EntityRegistry, user_id: str) -> No
         if registry.async_get_entity_id("sensor", DOMAIN, new_unique_id) is not None:
             _LOGGER.warning(
                 "Both legacy and canonical pickup summary entities exist; "
-                "reconcile %s and %s manually", old_unique_id, new_unique_id
+                "reconcile %s and %s manually",
+                old_unique_id,
+                new_unique_id,
             )
             continue
         registry.async_update_entity(old_entity_id, new_unique_id=new_unique_id)
@@ -74,9 +77,7 @@ async def async_setup_entry(
     # refresh before forwarding to platforms, so ConfigEntryNotReady is raised
     # from the entry setup rather than (too late) from this forwarded platform.
 
-    current_barcodes: set[str] = {
-        p.get("barcode", "") for p in coordinator.data or []
-    }
+    current_barcodes: set[str] = {p.get("barcode", "") for p in coordinator.data or []}
     user_id: str = user_info.get("userId", "")
 
     # Remove per-parcel sensors from the entity registry that are no longer
@@ -103,7 +104,7 @@ async def async_setup_entry(
             and entity_entry.unique_id.startswith(f"{user_id}_")
             and entity_entry.unique_id not in non_parcel_unique_ids
         ):
-            barcode = entity_entry.unique_id[len(f"{user_id}_"):]
+            barcode = entity_entry.unique_id[len(f"{user_id}_") :]
             if barcode not in current_barcodes:
                 registry.async_remove(entity_entry.entity_id)
 
@@ -129,9 +130,15 @@ async def async_setup_entry(
         )
 
     entities.append(DhlNextDeliverySensor(coordinator=coordinator, user_info=user_info))
-    entities.append(DhlEnRouteToPickupPointSensor(coordinator=coordinator, user_info=user_info))
-    entities.append(DhlAwaitingPickupSensor(coordinator=coordinator, user_info=user_info))
-    entities.append(DhlDeliveredParcelsSensor(coordinator=coordinator, user_info=user_info))
+    entities.append(
+        DhlEnRouteToPickupPointSensor(coordinator=coordinator, user_info=user_info)
+    )
+    entities.append(
+        DhlAwaitingPickupSensor(coordinator=coordinator, user_info=user_info)
+    )
+    entities.append(
+        DhlDeliveredParcelsSensor(coordinator=coordinator, user_info=user_info)
+    )
     entities.append(DhlLastUpdateSensor(coordinator=coordinator, user_info=user_info))
 
     # Outgoing — single summary sensor for active, single summary sensor for
@@ -153,8 +160,6 @@ async def async_setup_entry(
     )
 
     async_add_entities(entities)
-
-
 
 
 class DhlIncomingParcelsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
@@ -288,7 +293,6 @@ class DhlParcelSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
         return dict(parcel) if parcel else {}
 
 
-
 class DhlSentShipmentsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     """Summary sensor reporting the count of active outgoing DHL parcels.
 
@@ -348,7 +352,9 @@ class DhlSentShipmentsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
 
     def _parcels(self) -> list[dict]:
         """Return active own-sender shipments and return parcels, merged and sorted."""
-        combined = list(self._sent_coordinator.data or []) + list(self.coordinator.returning)
+        combined = list(self._sent_coordinator.data or []) + list(
+            self.coordinator.returning
+        )
         return sort_parcels_by_ts(combined, "planned_from")
 
     @property
@@ -404,7 +410,9 @@ class DhlOutgoingDeliveredSensor(CoordinatorEntity[DhlCoordinator], SensorEntity
 
     def _parcels(self) -> list[dict]:
         """Return delivered own-sender shipments and returns, merged and sorted."""
-        combined = list(self._sent_coordinator.delivered or []) + list(self.coordinator.delivered_outgoing)
+        combined = list(self._sent_coordinator.delivered or []) + list(
+            self.coordinator.delivered_outgoing
+        )
         return sort_parcels_by_ts(combined, "delivered_at", descending=True)
 
     @property
@@ -454,9 +462,9 @@ class DhlNextDeliverySensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
             if not moment_str:
                 continue
             try:
-                dt = datetime.fromisoformat(moment_str.replace("Z", "+00:00"))
+                dt = datetime.fromisoformat(moment_str)
                 if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
+                    dt = dt.replace(tzinfo=UTC)
                 result.append((dt, parcel))
             except ValueError:
                 _LOGGER.debug("Could not parse delivery moment: %s", moment_str)
@@ -512,9 +520,9 @@ class DhlEnRouteToPickupPointSensor(CoordinatorEntity[DhlCoordinator], SensorEnt
     def _get_en_route_parcels(self) -> list[dict]:
         """Return active parcels still in transit to a ServicePoint."""
         return [
-            p for p in (self.coordinator.data or [])
-            if p.get("pickup")
-            and p.get("status") != ParcelStatus.AT_PICKUP_POINT
+            p
+            for p in (self.coordinator.data or [])
+            if p.get("pickup") and p.get("status") != ParcelStatus.AT_PICKUP_POINT
         ]
 
     @property
@@ -557,7 +565,8 @@ class DhlAwaitingPickupSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     def _get_pickup_parcels(self) -> list[dict]:
         """Return parcels that have arrived at a ServicePoint and are ready for collection."""
         return [
-            p for p in (self.coordinator.data or [])
+            p
+            for p in (self.coordinator.data or [])
             if p.get("status") == ParcelStatus.AT_PICKUP_POINT
         ]
 

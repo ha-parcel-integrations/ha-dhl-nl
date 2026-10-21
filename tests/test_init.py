@@ -1,10 +1,12 @@
 """Tests for the DHL integration setup/unload entry points."""
+
 from unittest.mock import AsyncMock, patch
 
 import aiohttp
-import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
+import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.dhl_nl import DhlData
 from custom_components.dhl_nl.api import DhlApiError, DhlAuthError
@@ -20,8 +22,6 @@ _USER_INFO = {"userId": "abc123", "email": _ENTRY_DATA[CONF_EMAIL]}
 
 
 def _add_entry(hass):
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
-
     entry = MockConfigEntry(
         domain=DOMAIN,
         unique_id=_ENTRY_DATA[CONF_EMAIL],

@@ -1,4 +1,5 @@
 """Tests for the DHL diagnostics handler."""
+
 from datetime import timedelta
 from unittest.mock import MagicMock
 
@@ -77,19 +78,21 @@ async def test_diagnostics_passes_through_options():
 @pytest.mark.asyncio
 async def test_diagnostics_redacts_parcel_barcode_and_address():
     entry = _entry_with_runtime_data(
-        incoming=[{
-            "barcode": "3SABC123",
-            "receiver": "Jane Doe",
-            "sender": {"name": "Brand"},
-            "destination": {
-                "address": {
-                    "postalCode": "1234AB",
-                    "street": "Hoofdstraat",
-                    "houseNumber": "42",
-                    "city": "Amsterdam",
-                }
-            },
-        }],
+        incoming=[
+            {
+                "barcode": "3SABC123",
+                "receiver": "Jane Doe",
+                "sender": {"name": "Brand"},
+                "destination": {
+                    "address": {
+                        "postalCode": "1234AB",
+                        "street": "Hoofdstraat",
+                        "houseNumber": "42",
+                        "city": "Amsterdam",
+                    }
+                },
+            }
+        ],
     )
     result = await async_get_config_entry_diagnostics(MagicMock(), entry)
     parcel = result["incoming"][0]

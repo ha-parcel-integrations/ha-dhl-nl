@@ -1,11 +1,13 @@
 """Tests for the DHL config flow."""
+
 from unittest.mock import AsyncMock, patch
 
 import aiohttp
-import pytest
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.data_entry_flow import FlowResultType
+import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.dhl_nl.api import DhlAuthError
 from custom_components.dhl_nl.const import (
@@ -91,8 +93,6 @@ async def test_user_flow_cannot_connect(hass):
 @pytest.mark.asyncio
 async def test_user_flow_aborts_when_already_configured(hass):
     """Setting up the same email twice aborts the second flow."""
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
-
     MockConfigEntry(
         domain=DOMAIN,
         unique_id=_USER_INPUT[CONF_EMAIL],
@@ -122,8 +122,6 @@ async def test_options_flow_updates_filter_and_history(hass):
     the user input nested by section name; the handler flattens it before
     storing on the entry. There is no ``polling`` section.
     """
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
-
     entry = MockConfigEntry(
         domain=DOMAIN,
         unique_id=_USER_INPUT[CONF_EMAIL],
@@ -164,8 +162,6 @@ async def test_options_flow_drops_a_stale_refresh_interval(hass):
     ``refresh_interval``. The form must render without a polling section and
     the submitted options must not carry the stale key forward.
     """
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
-
     entry = MockConfigEntry(
         domain=DOMAIN,
         unique_id=_USER_INPUT[CONF_EMAIL],
@@ -200,8 +196,6 @@ async def test_options_flow_drops_a_stale_refresh_interval(hass):
 @pytest.mark.asyncio
 async def test_reauth_flow_updates_credentials_and_reloads(hass):
     """Reauth flow updates entry data and triggers reload."""
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
-
     entry = MockConfigEntry(
         domain=DOMAIN,
         unique_id=_USER_INPUT[CONF_EMAIL],
@@ -237,8 +231,6 @@ async def test_reauth_flow_updates_credentials_and_reloads(hass):
 @pytest.mark.asyncio
 async def test_reauth_flow_surfaces_invalid_auth(hass):
     """An invalid login during reauth shows an error and does not update creds."""
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
-
     entry = MockConfigEntry(
         domain=DOMAIN,
         unique_id=_USER_INPUT[CONF_EMAIL],
@@ -264,8 +256,6 @@ async def test_reauth_flow_surfaces_invalid_auth(hass):
 @pytest.mark.asyncio
 async def test_reauth_flow_aborts_on_different_account(hass):
     """Reauthenticating with another account's credentials aborts the flow."""
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
-
     entry = MockConfigEntry(
         domain=DOMAIN,
         unique_id=_USER_INPUT[CONF_EMAIL],

@@ -1,13 +1,11 @@
 """Unit tests for the DHL API client."""
+
+import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from custom_components.dhl_nl.api import (
-    DhlApiClient,
-    DhlApiError,
-    DhlAuthError,
-)
+from custom_components.dhl_nl.api import DhlApiClient, DhlApiError, DhlAuthError
 from custom_components.dhl_nl.const import COOKIE_XSRF, HEADER_XSRF
 
 
@@ -15,7 +13,9 @@ def _mock_response(*, status: int = 200, json_payload=None) -> AsyncMock:
     """Build an aiohttp.ClientResponse stand-in for use as an async context manager."""
     response = MagicMock()
     response.status = status
-    response.json = AsyncMock(return_value=json_payload if json_payload is not None else {})
+    response.json = AsyncMock(
+        return_value=json_payload if json_payload is not None else {}
+    )
     response.__aenter__ = AsyncMock(return_value=response)
     response.__aexit__ = AsyncMock(return_value=False)
     return response
@@ -215,10 +215,8 @@ def _mock_text_response(*, status: int = 200, text: str = "") -> MagicMock:
 
 
 async def test_async_get_track_trace_parses_text_plain_body_and_params():
-    import json as _json
-
     payload = [{"id": "u", "view": {"phases": []}}]
-    session = _mock_session(gets=[_mock_text_response(text=_json.dumps(payload))])
+    session = _mock_session(gets=[_mock_text_response(text=json.dumps(payload))])
     client = DhlApiClient("a@b", "pw", session)
 
     result = await client.async_get_track_trace("JX1", "1234AB", "u")

@@ -1,4 +1,5 @@
 """Constants for the DHL Package Tracker integration."""
+
 from enum import StrEnum
 
 from homeassistant.const import Platform
@@ -14,14 +15,17 @@ class ParcelStatus(StrEnum):
     aggregator. Listed in roughly the order a parcel moves through.
     """
 
-    REGISTERED = "registered"               # Sender announced the parcel; carrier has not handed-over yet
-    IN_TRANSIT = "in_transit"               # In the carrier's network, somewhere between sender and delivery point
-    OUT_FOR_DELIVERY = "out_for_delivery"   # On a delivery vehicle today
-    AT_PICKUP_POINT = "at_pickup_point"     # Arrived at the chosen ServicePoint / PostNL Point / ParcelShop
-    DELIVERED = "delivered"                 # Handed over (mailbox, recipient, neighbour, picked up)
-    RETURNING = "returning"                 # Failed delivery, going back to sender
-    PROBLEM = "problem"                     # Carrier reports an exception, intervention, or other issue
-    UNKNOWN = "unknown"                     # Raw status we have not mapped yet — logged at warning level
+    REGISTERED = (
+        "registered"  # Sender announced the parcel; carrier has not handed-over yet
+    )
+    IN_TRANSIT = "in_transit"  # In the carrier's network, somewhere between sender and delivery point
+    OUT_FOR_DELIVERY = "out_for_delivery"  # On a delivery vehicle today
+    AT_PICKUP_POINT = "at_pickup_point"  # Arrived at the chosen ServicePoint / PostNL Point / ParcelShop
+    DELIVERED = "delivered"  # Handed over (mailbox, recipient, neighbour, picked up)
+    RETURNING = "returning"  # Failed delivery, going back to sender
+    PROBLEM = "problem"  # Carrier reports an exception, intervention, or other issue
+    UNKNOWN = "unknown"  # Raw status we have not mapped yet — logged at warning level
+
 
 PLATFORMS = [Platform.BUTTON, Platform.CALENDAR, Platform.SENSOR]
 
@@ -90,17 +94,19 @@ HISTORY_MAX_EVENTS = 20
 # All categories that indicate a shipment is still active (not yet delivered).
 # Applies to both incoming parcels and outgoing sent shipments.
 # DELIVERED is the only terminal category and is intentionally excluded.
-ACTIVE_CATEGORIES = frozenset({
-    "CUSTOMS",        # Being processed by customs
-    "DATA_RECEIVED",  # Shipment registered / label created
-    "EXCEPTION",      # Something went wrong, delay expected
-    "IN_DELIVERY",    # Parcel is in transit
-    "INTERVENTION",   # An intervention occurred in the delivery process
-    "LEG",            # Domestic leg registered (early trace event)
-    "PROBLEM",        # Same as EXCEPTION
-    "UNDERWAY",       # Parcel is being sorted
-    "UNKNOWN",        # Status unknown
-})
+ACTIVE_CATEGORIES = frozenset(
+    {
+        "CUSTOMS",  # Being processed by customs
+        "DATA_RECEIVED",  # Shipment registered / label created
+        "EXCEPTION",  # Something went wrong, delay expected
+        "IN_DELIVERY",  # Parcel is in transit
+        "INTERVENTION",  # An intervention occurred in the delivery process
+        "LEG",  # Domestic leg registered (early trace event)
+        "PROBLEM",  # Same as EXCEPTION
+        "UNDERWAY",  # Parcel is being sorted
+        "UNKNOWN",  # Status unknown
+    }
+)
 
 STATUS_AT_SERVICE_POINT = "NOTIFICATION_FOR_PARCELSHOP_COLLECTION_HAS_BEEN_SENT"
 STATUS_COLLECTED_AT_SERVICE_POINT = "COLLECTED_AT_PARCELSHOP"

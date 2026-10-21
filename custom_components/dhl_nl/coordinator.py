@@ -1,9 +1,10 @@
 """Coordinator for the DHL Package Tracker integration."""
+
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 import hashlib
 import logging
-from datetime import datetime, timedelta, timezone
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -59,10 +60,9 @@ def _next_anchor(now: datetime) -> datetime:
     )
     if now < six_today:
         return six_today
-    midnight_tomorrow = (now + timedelta(days=1)).replace(
+    return (now + timedelta(days=1)).replace(
         hour=QUIET_WINDOW_START_HOUR, minute=0, second=0, microsecond=0
     )
-    return midnight_tomorrow
 
 
 def _hottest_tier_minutes(active_parcels: list[dict], now: datetime) -> int:
@@ -110,7 +110,9 @@ def _next_update_interval(now: datetime, tier_minutes: int, entry_id: str) -> ti
 class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
     """Coordinator that polls the DHL parcels API on the dynamic schedule."""
 
-    def __init__(self, hass: HomeAssistant, client: DhlApiClient, entry: ConfigEntry) -> None:
+    def __init__(
+        self, hass: HomeAssistant, client: DhlApiClient, entry: ConfigEntry
+    ) -> None:
         """Initialise the coordinator.
 
         Args:
@@ -144,9 +146,9 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
         self._known_state: dict[str, ParcelStatus] | None = None
         # barcode -> last seen (planned_from, planned_to) tuple. Mirrors
         # ``_known_state`` for delivery-time-change detection.
-        self._known_delivery_times: (
-            dict[str, tuple[str | None, str | None]] | None
-        ) = None
+        self._known_delivery_times: dict[str, tuple[str | None, str | None]] | None = (
+            None
+        )
         # barcode -> last seen ParcelStatus for *outgoing* parcels (returns +
         # sent), tracked across the active (``returning``) and delivered
         # (``delivered_outgoing``) buckets so a status change or a
@@ -188,7 +190,9 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
             return self._cached_device_id
         registry = dr.async_get(self.hass)
         device = next(
-            iter(dr.async_entries_for_config_entry(registry, self.config_entry.entry_id)),
+            iter(
+                dr.async_entries_for_config_entry(registry, self.config_entry.entry_id)
+            ),
             None,
         )
         if device is not None:
@@ -199,9 +203,7 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
     def _include_history(self) -> bool:
         """Whether the opt-in per-parcel history option is enabled."""
         return bool(
-            self.config_entry.options.get(
-                CONF_INCLUDE_HISTORY, DEFAULT_INCLUDE_HISTORY
-            )
+            self.config_entry.options.get(CONF_INCLUDE_HISTORY, DEFAULT_INCLUDE_HISTORY)
         )
 
     def _normalize(self, parcel: dict) -> dict:
@@ -226,7 +228,11 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
         _LOGGER.debug(
             "DHL parcels fetched: %d total, %d active, %d delivered, "
             "%d returning, %d returned",
-            len(raw), len(active), len(delivered), len(returning), len(delivered_returns),
+            len(raw),
+            len(active),
+            len(delivered),
+            len(returning),
+            len(delivered_returns),
         )
         # Fetch the track-trace timeline for active + delivered parcels when
         # the option is on, before normalizing so the history is attached.
@@ -261,9 +267,7 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
         self._fire_outgoing_change_events(outgoing)
 
         self._known_state = {
-            p["barcode"]: p["status"]
-            for p in incoming
-            if p.get("barcode")
+            p["barcode"]: p["status"] for p in incoming if p.get("barcode")
         }
         self._known_delivery_times = {
             p["barcode"]: (p.get("planned_from"), p.get("planned_to"))
@@ -271,12 +275,10 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
             if p.get("barcode")
         }
         self._known_outgoing_state = {
-            p["barcode"]: p["status"]
-            for p in outgoing
-            if p.get("barcode")
+            p["barcode"]: p["status"] for p in outgoing if p.get("barcode")
         }
 
-        self.last_success_time = datetime.now(timezone.utc)
+        self.last_success_time = datetime.now(UTC)
 
         # Hottest-status scan over incoming AND outgoing (returns) — not
         # just incoming.
@@ -432,9 +434,7 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
             if cached is not None and cached.get("_raw_status") == raw_status:
                 continue
             postal = (
-                ((parcel.get("receiver") or {}).get("address") or {}).get(
-                    "postalCode"
-                )
+                ((parcel.get("receiver") or {}).get("address") or {}).get("postalCode")
                 or ""
             ).replace(" ", "")
             parcel_id = parcel.get("parcelId")
@@ -462,7 +462,9 @@ class DhlSentShipmentsCoordinator(DataUpdateCoordinator[list[dict]]):
     client, never a scheduling point.
     """
 
-    def __init__(self, hass: HomeAssistant, client: DhlApiClient, entry: ConfigEntry) -> None:
+    def __init__(
+        self, hass: HomeAssistant, client: DhlApiClient, entry: ConfigEntry
+    ) -> None:
         """Initialise the coordinator.
 
         Args:
@@ -516,7 +518,9 @@ class DhlSentShipmentsCoordinator(DataUpdateCoordinator[list[dict]]):
         )
         _LOGGER.debug(
             "DHL sent shipments fetched: %d total, %d active, %d delivered",
-            len(raw), len(active), len(delivered),
+            len(raw),
+            len(active),
+            len(delivered),
         )
         self.delivered = sort_parcels_by_ts(
             [normalize_parcel(s) for s in delivered],

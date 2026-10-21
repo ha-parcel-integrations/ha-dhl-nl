@@ -1,12 +1,12 @@
 """Config flow for the DHL Package Tracker integration."""
+
 from __future__ import annotations
 
-import logging
 from collections.abc import Mapping
+import logging
 from typing import Any
 
 import aiohttp
-import voluptuous as vol
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -18,6 +18,7 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import section
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+import voluptuous as vol
 
 from .api import DhlApiClient, DhlApiError, DhlAuthError
 from .const import (
@@ -41,14 +42,18 @@ _USER_SCHEMA = vol.Schema(
 
 _DELIVERED_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_DELIVERED_FILTER_TYPE, default=DEFAULT_DELIVERED_FILTER_TYPE): selector.SelectSelector(
+        vol.Required(
+            CONF_DELIVERED_FILTER_TYPE, default=DEFAULT_DELIVERED_FILTER_TYPE
+        ): selector.SelectSelector(
             selector.SelectSelectorConfig(
                 options=["days", "parcels"],
                 translation_key=CONF_DELIVERED_FILTER_TYPE,
                 mode=selector.SelectSelectorMode.LIST,
             )
         ),
-        vol.Required(CONF_DELIVERED_FILTER_AMOUNT, default=DEFAULT_DELIVERED_FILTER_AMOUNT): selector.NumberSelector(
+        vol.Required(
+            CONF_DELIVERED_FILTER_AMOUNT, default=DEFAULT_DELIVERED_FILTER_AMOUNT
+        ): selector.NumberSelector(
             selector.NumberSelectorConfig(
                 min=1,
                 max=365,
@@ -121,7 +126,9 @@ class DhlConfigFlow(ConfigFlow, domain=DOMAIN):
                 data={CONF_EMAIL: self._email, CONF_PASSWORD: self._password},
                 options={
                     CONF_DELIVERED_FILTER_TYPE: user_input[CONF_DELIVERED_FILTER_TYPE],
-                    CONF_DELIVERED_FILTER_AMOUNT: int(user_input[CONF_DELIVERED_FILTER_AMOUNT]),
+                    CONF_DELIVERED_FILTER_AMOUNT: int(
+                        user_input[CONF_DELIVERED_FILTER_AMOUNT]
+                    ),
                 },
             )
 
@@ -196,7 +203,9 @@ class DhlOptionsFlowHandler(OptionsFlow):
                 title="",
                 data={
                     CONF_DELIVERED_FILTER_TYPE: delivered[CONF_DELIVERED_FILTER_TYPE],
-                    CONF_DELIVERED_FILTER_AMOUNT: int(delivered[CONF_DELIVERED_FILTER_AMOUNT]),
+                    CONF_DELIVERED_FILTER_AMOUNT: int(
+                        delivered[CONF_DELIVERED_FILTER_AMOUNT]
+                    ),
                     CONF_INCLUDE_HISTORY: bool(history[CONF_INCLUDE_HISTORY]),
                 },
             )
@@ -218,8 +227,13 @@ class DhlOptionsFlowHandler(OptionsFlow):
                                 ): selector.SelectSelector(
                                     selector.SelectSelectorConfig(
                                         options=[
-                                            selector.SelectOptionDict(value="days", label="Days"),
-                                            selector.SelectOptionDict(value="parcels", label="Number of parcels"),
+                                            selector.SelectOptionDict(
+                                                value="days", label="Days"
+                                            ),
+                                            selector.SelectOptionDict(
+                                                value="parcels",
+                                                label="Number of parcels",
+                                            ),
                                         ],
                                         mode=selector.SelectSelectorMode.LIST,
                                     )

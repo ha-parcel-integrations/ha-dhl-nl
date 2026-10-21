@@ -8,6 +8,7 @@ exactly one place to fix.
 Every helper returns a **fresh** dict, so a test may mutate what it gets back
 without leaking into the next one.
 """
+
 from __future__ import annotations
 
 ACTIVE_BARCODE = "TEST123"
@@ -122,19 +123,51 @@ def track_trace() -> list[dict]:
             "barcode": HISTORY_BARCODE,
             "view": {
                 "phases": [
-                    {"phase": "DELIVERED", "events": [
-                        {"timestamp": "2026-06-24T17:23:13Z", "key": "DELIVERED", "exception": False},
-                    ]},
-                    {"phase": "IN_DELIVERY", "events": [
-                        {"timestamp": "2026-06-24T15:17:49Z", "key": "OUT_FOR_DELIVERY", "exception": False},
-                    ]},
-                    {"phase": "UNDERWAY", "events": [
-                        {"timestamp": "2026-06-24T12:18:34Z", "key": "PARCEL_ARRIVED_AT_LOCAL_DEPOT", "exception": False},
-                        {"timestamp": "2026-06-24T02:00:00Z", "key": "PARCEL_SORTED_AT_HUB", "exception": False},
-                    ]},
-                    {"phase": "DATA_RECEIVED", "events": [
-                        {"timestamp": "2026-06-23T11:05:01Z", "key": "PRENOTIFICATION_RECEIVED", "exception": False},
-                    ]},
+                    {
+                        "phase": "DELIVERED",
+                        "events": [
+                            {
+                                "timestamp": "2026-06-24T17:23:13Z",
+                                "key": "DELIVERED",
+                                "exception": False,
+                            },
+                        ],
+                    },
+                    {
+                        "phase": "IN_DELIVERY",
+                        "events": [
+                            {
+                                "timestamp": "2026-06-24T15:17:49Z",
+                                "key": "OUT_FOR_DELIVERY",
+                                "exception": False,
+                            },
+                        ],
+                    },
+                    {
+                        "phase": "UNDERWAY",
+                        "events": [
+                            {
+                                "timestamp": "2026-06-24T12:18:34Z",
+                                "key": "PARCEL_ARRIVED_AT_LOCAL_DEPOT",
+                                "exception": False,
+                            },
+                            {
+                                "timestamp": "2026-06-24T02:00:00Z",
+                                "key": "PARCEL_SORTED_AT_HUB",
+                                "exception": False,
+                            },
+                        ],
+                    },
+                    {
+                        "phase": "DATA_RECEIVED",
+                        "events": [
+                            {
+                                "timestamp": "2026-06-23T11:05:01Z",
+                                "key": "PRENOTIFICATION_RECEIVED",
+                                "exception": False,
+                            },
+                        ],
+                    },
                 ],
             },
         }

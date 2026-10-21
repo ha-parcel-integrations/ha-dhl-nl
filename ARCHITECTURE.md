@@ -45,8 +45,9 @@ class DhlData:
     client: DhlApiClient
     coordinator: DhlCoordinator
     sent_coordinator: DhlSentShipmentsCoordinator
-    user_info: dict[str, Any]        # login response: userId, email, firstName, …
-    session: aiohttp.ClientSession   # per-entry, closed on unload
+    user_info: dict[str, Any]  # login response: userId, email, firstName, …
+    session: aiohttp.ClientSession  # per-entry, closed on unload
+
 
 type DhlConfigEntry = ConfigEntry[DhlData]
 ```

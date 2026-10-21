@@ -4,10 +4,11 @@ No I/O and no Home Assistant objects beyond the config entry's options: this is
 the carrier-specific status mapping and canonical-shape logic, kept apart from
 the coordinator (fetching, caching, events) so it stays trivially unit-testable.
 """
+
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 import logging
-from datetime import datetime, timedelta, timezone
 
 from homeassistant.config_entries import ConfigEntry
 
@@ -252,9 +253,7 @@ def map_parcel_status(parcel: dict) -> ParcelStatus:
     return result
 
 
-def map_event_status(
-    event_key: str | None, phase: str | None
-) -> ParcelStatus | None:
+def map_event_status(event_key: str | None, phase: str | None) -> ParcelStatus | None:
     """Map a track-trace event to a canonical status, reusing the parcel maps.
 
     DHL's per-event ``key`` shares the granular ``status`` vocabulary and the
@@ -269,7 +268,7 @@ def map_event_status(
     # event_key itself is unmapped — same one-shot-warning rule as
     # map_parcel_status: log it even when the phase fallback below still
     # yields a result, so an unmapped key never hides behind it.
-    result = _CATEGORY_MAP.get(phase, None) if phase else None
+    result = _CATEGORY_MAP.get(phase) if phase else None
     key = (event_key or "", phase or "")
     if key not in _unmapped_event_keys_logged:
         _unmapped_event_keys_logged.add(key)
@@ -294,11 +293,11 @@ def _parse_iso(value: str | None) -> datetime | None:
     if not value:
         return None
     try:
-        dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(str(value))
     except ValueError:
         return None
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return dt
 
 
@@ -317,8 +316,7 @@ def _extract_events(track_trace: list | dict | None) -> list[tuple[dict, str | N
     pairs: list[tuple[dict, str | None]] = []
     for phase_block in view.get("phases") or []:
         phase = phase_block.get("phase")
-        for event in phase_block.get("events") or []:
-            pairs.append((event, phase))
+        pairs.extend((event, phase) for event in phase_block.get("events") or [])
     return pairs
 
 
@@ -437,36 +435,34 @@ def normalize_parcel(parcel: dict, *, history: list[dict] | None = None) -> dict
 def filter_active_parcels(parcels: list[dict]) -> list[dict]:
     """Return only active incoming parcels (not returns, in an active category)."""
     return [
-        p for p in parcels
-        if not _is_return(p)
-        and p.get("category") in ACTIVE_CATEGORIES
+        p
+        for p in parcels
+        if not _is_return(p) and p.get("category") in ACTIVE_CATEGORIES
     ]
 
 
 def filter_delivered_parcels(parcels: list[dict]) -> list[dict]:
     """Return delivered incoming parcels (not returns, category DELIVERED)."""
     return [
-        p for p in parcels
-        if not _is_return(p)
-        and p.get("category") == "DELIVERED"
+        p for p in parcels if not _is_return(p) and p.get("category") == "DELIVERED"
     ]
 
 
 def filter_active_sent_shipments(shipments: list[dict]) -> list[dict]:
     """Return only outgoing shipments that are still in transit (not yet delivered)."""
     return [
-        s for s in shipments
-        if s.get("type") == "outgoing"
-        and s.get("category") in ACTIVE_CATEGORIES
+        s
+        for s in shipments
+        if s.get("type") == "outgoing" and s.get("category") in ACTIVE_CATEGORIES
     ]
 
 
 def filter_delivered_sent_shipments(shipments: list[dict]) -> list[dict]:
     """Return outgoing shipments that have been delivered."""
     return [
-        s for s in shipments
-        if s.get("type") == "outgoing"
-        and s.get("category") == "DELIVERED"
+        s
+        for s in shipments
+        if s.get("type") == "outgoing" and s.get("category") == "DELIVERED"
     ]
 
 
@@ -482,19 +478,13 @@ def filter_active_returns(parcels: list[dict]) -> list[dict]:
     a parcel becomes outgoing, same as PostNL's model.
     """
     return [
-        p for p in parcels
-        if _is_return(p)
-        and p.get("category") in ACTIVE_CATEGORIES
+        p for p in parcels if _is_return(p) and p.get("category") in ACTIVE_CATEGORIES
     ]
 
 
 def filter_delivered_returns(parcels: list[dict]) -> list[dict]:
     """Return return parcels that have arrived back at the shipper."""
-    return [
-        p for p in parcels
-        if _is_return(p)
-        and p.get("category") == "DELIVERED"
-    ]
+    return [p for p in parcels if _is_return(p) and p.get("category") == "DELIVERED"]
 
 
 def _delivery_dt(parcel: dict) -> datetime | None:
@@ -510,8 +500,8 @@ def _delivery_dt(parcel: dict) -> datetime | None:
     if not moment_str:
         return None
     try:
-        dt = datetime.fromisoformat(moment_str.replace("Z", "+00:00"))
-        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        dt = datetime.fromisoformat(moment_str)
+        return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
     except ValueError:
         return None
 
@@ -525,20 +515,19 @@ def _apply_delivered_filter(parcels: list[dict], entry: ConfigEntry) -> list[dic
     """
     options = entry.options
     filter_type = options.get(CONF_DELIVERED_FILTER_TYPE, DEFAULT_DELIVERED_FILTER_TYPE)
-    filter_amount = int(options.get(CONF_DELIVERED_FILTER_AMOUNT, DEFAULT_DELIVERED_FILTER_AMOUNT))
+    filter_amount = int(
+        options.get(CONF_DELIVERED_FILTER_AMOUNT, DEFAULT_DELIVERED_FILTER_AMOUNT)
+    )
 
     if filter_type == "days":
-        cutoff = datetime.now(timezone.utc) - timedelta(days=filter_amount)
-        return [
-            p for p in parcels
-            if (dt := _delivery_dt(p)) is None or dt >= cutoff
-        ]
+        cutoff = datetime.now(UTC) - timedelta(days=filter_amount)
+        return [p for p in parcels if (dt := _delivery_dt(p)) is None or dt >= cutoff]
 
     # "parcels" — return the most recent N. Sort first rather than trusting
     # the API's own ordering, so this holds regardless of what DHL returns.
     ordered = sorted(
         parcels,
-        key=lambda p: _delivery_dt(p) or datetime.min.replace(tzinfo=timezone.utc),
+        key=lambda p: _delivery_dt(p) or datetime.min.replace(tzinfo=UTC),
         reverse=True,
     )
     return ordered[:filter_amount]
@@ -561,7 +550,7 @@ def sort_parcels_by_ts(
             without_ts.append(parcel)
             continue
         try:
-            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            dt = datetime.fromisoformat(value)
         except ValueError:
             without_ts.append(parcel)
             continue

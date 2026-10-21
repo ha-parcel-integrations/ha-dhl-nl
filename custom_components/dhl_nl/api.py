@@ -1,4 +1,5 @@
 """DHL eCommerce NL API client."""
+
 from __future__ import annotations
 
 import asyncio
@@ -101,6 +102,7 @@ class DhlApiClient:
 
     async def async_get_parcels(self) -> list[dict[str, Any]]:
         """Retrieve the parcel list, re-authenticating once on session expiry."""
+
         async def _fetch() -> list[dict[str, Any]]:
             headers = self._xsrf_headers()
             async with self._session.get(PARCELS_URL, headers=headers) as response:
@@ -113,9 +115,12 @@ class DhlApiClient:
 
     async def async_get_sent_shipments(self) -> list[dict[str, Any]]:
         """Retrieve the sent shipments list, re-authenticating once on session expiry."""
+
         async def _fetch() -> list[dict[str, Any]]:
             headers = self._xsrf_headers()
-            async with self._session.get(SENT_SHIPMENTS_URL, headers=headers) as response:
+            async with self._session.get(
+                SENT_SHIPMENTS_URL, headers=headers
+            ) as response:
                 if response.status != 200:
                     raise DhlApiError(response.status)
                 data: list[dict[str, Any]] = await response.json()

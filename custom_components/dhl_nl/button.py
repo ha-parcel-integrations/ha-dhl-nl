@@ -1,4 +1,5 @@
 """Button platform for the DHL Package Tracker integration."""
+
 from __future__ import annotations
 
 from homeassistant.components.button import ButtonEntity
@@ -11,8 +12,6 @@ from .device import ATTRIBUTION, build_device_info
 # A manual refresh is a single API round-trip; HA's per-entity throttling
 # adds nothing here.
 PARALLEL_UPDATES = 0
-
-
 
 
 async def async_setup_entry(

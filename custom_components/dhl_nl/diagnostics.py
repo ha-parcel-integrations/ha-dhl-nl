@@ -1,4 +1,5 @@
 """Diagnostics support for the DHL Package Tracker integration."""
+
 from __future__ import annotations
 
 from typing import Any
