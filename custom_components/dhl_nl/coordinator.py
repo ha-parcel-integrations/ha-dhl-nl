@@ -110,6 +110,8 @@ def _next_update_interval(now: datetime, tier_minutes: int, entry_id: str) -> ti
 class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
     """Coordinator that polls the DHL parcels API on the dynamic schedule."""
 
+    config_entry: ConfigEntry
+
     def __init__(
         self, hass: HomeAssistant, client: DhlApiClient, entry: ConfigEntry
     ) -> None:
@@ -461,6 +463,8 @@ class DhlSentShipmentsCoordinator(DataUpdateCoordinator[list[dict]]):
     Scheduled independently of :class:`DhlCoordinator` — the two share one
     client, never a scheduling point.
     """
+
+    config_entry: ConfigEntry
 
     def __init__(
         self, hass: HomeAssistant, client: DhlApiClient, entry: ConfigEntry
