@@ -49,7 +49,11 @@ A custom Home Assistant integration that tracks your incoming and outgoing DHL e
 
 1. Open HACS and search for **DHL**
 2. Install it
-3. Restart Home Assistant
+3. Restart Home Assistant if HACS asks you to
+
+Or click the button below to open it directly in HACS:
+
+[![Open your Home Assistant instance and open this repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ha-parcel-integrations&repository=ha-dhl-nl&category=integration)
 
 ### Manual
 
@@ -57,6 +61,10 @@ A custom Home Assistant integration that tracks your incoming and outgoing DHL e
 2. Restart Home Assistant
 
 ## Configuration
+
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=dhl_nl)
+
+Or set it up by hand:
 
 1. Go to **Settings → Devices & Services → Add Integration**
 2. Search for **DHL**
