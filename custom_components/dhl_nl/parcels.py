@@ -152,6 +152,13 @@ _STATUS_MAP: dict[str, ParcelStatus] = {
     # collection scan, not the recipient-facing AT_PICKUP_POINT states above.
     # ha-parcel-integrations/ha-dhl-nl#15
     "PARCEL_PICKED_UP_AT_PARCELSHOP": ParcelStatus.IN_TRANSIT,
+    # Sender handed the parcel to DHL (ServicePoint, locker, depot) — the
+    # acceptance scan before PARCEL_PICKED_UP_AT_PARCELSHOP.
+    # ha-parcel-integrations/ha-dhl-nl#21
+    "SHIPMENT_ACCEPTANCE": ParcelStatus.IN_TRANSIT,
+    "SHIPMENT_ACCEPTANCE_DEPOT": ParcelStatus.IN_TRANSIT,
+    "SHIPMENT_ACCEPTANCE_PARCELSHOP": ParcelStatus.IN_TRANSIT,
+    "SHIPMENT_ACCEPTANCE_PARCELSTATION": ParcelStatus.IN_TRANSIT,
 }
 
 # DHL category (high-level state) → canonical ParcelStatus. Used as a
