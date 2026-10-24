@@ -1,7 +1,7 @@
 """Tests for coordinator filter functions and error handling."""
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.helpers.update_coordinator import UpdateFailed
 import pytest
@@ -458,6 +458,42 @@ async def test_coordinator_raises_update_failed_on_api_error(hass):
 
     with pytest.raises(UpdateFailed):
         await coordinator._async_update_data()
+
+
+async def test_failed_poll_account_drops_the_overnight_interval(hass):
+    client = MagicMock()
+    client.async_get_parcels = AsyncMock(side_effect=DhlApiError("down"))
+    coordinator = DhlCoordinator(hass, client, _mock_entry())
+    coordinator.update_interval = timedelta(hours=5, minutes=40)
+
+    noon = datetime(2026, 1, 15, 12, tzinfo=UTC)
+    with (
+        patch("custom_components.dhl_nl.coordinator.dt_util.now", return_value=noon),
+        pytest.raises(UpdateFailed),
+    ):
+        await coordinator._async_update_data()
+
+    assert coordinator.update_interval <= timedelta(
+        minutes=MID_INTERVAL_MINUTES + STAGGER_MINUTES
+    )
+
+
+async def test_failed_poll_sent_shipments_drops_the_overnight_interval(hass):
+    client = MagicMock()
+    client.async_get_sent_shipments = AsyncMock(side_effect=DhlApiError("down"))
+    coordinator = DhlSentShipmentsCoordinator(hass, client, _mock_entry())
+    coordinator.update_interval = timedelta(hours=5, minutes=40)
+
+    noon = datetime(2026, 1, 15, 12, tzinfo=UTC)
+    with (
+        patch("custom_components.dhl_nl.coordinator.dt_util.now", return_value=noon),
+        pytest.raises(UpdateFailed),
+    ):
+        await coordinator._async_update_data()
+
+    assert coordinator.update_interval <= timedelta(
+        minutes=MID_INTERVAL_MINUTES + STAGGER_MINUTES
+    )
 
 
 async def test_coordinator_returns_only_active_parcels(hass):
