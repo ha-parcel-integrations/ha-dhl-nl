@@ -2,7 +2,7 @@
 
 Home Assistant custom integration for DHL eCommerce NL parcel tracking.
 Distributed via HACS; not part of HA core. **Silver** quality tier,
-minimum HA `2024.12.0`. No DTO layer — network calls return raw JSON dicts.
+minimum HA `2025.12.0`. No DTO layer — network calls return raw JSON dicts.
 
 Three places hold the knowledge, and they do not overlap:
 
