@@ -1723,3 +1723,32 @@ async def test_both_coordinators_recompute_independently(hass):
 
     assert parcels.current_tier_minutes == HOT_INTERVAL_MINUTES
     assert sent.current_tier_minutes == MID_INTERVAL_MINUTES
+
+
+async def test_a_parcel_the_delivered_list_leaves_out_still_fires_delivered(hass):
+    """The retention option limits the delivered sensor, never the events."""
+    recent = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
+    older = (datetime.now(UTC) - timedelta(hours=2)).isoformat()
+    client = MagicMock()
+    client.async_get_parcels = AsyncMock(
+        side_effect=[
+            [
+                parcel_sample("IN_DELIVERY", barcode="A"),
+                parcel_sample("IN_DELIVERY", barcode="B"),
+            ],
+            [
+                parcel_sample("DELIVERED", barcode="A", moment=recent),
+                parcel_sample("DELIVERED", barcode="B", moment=older),
+            ],
+        ]
+    )
+    delivered: list = []
+    hass.bus.async_listen("dhl_nl_parcel_delivered", lambda e: delivered.append(e.data))
+
+    coordinator = DhlCoordinator(hass, client, _mock_entry("parcels", 1))
+    await coordinator._async_update_data()
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert sorted(parcel["barcode"] for parcel in delivered) == ["A", "B"]
+    assert [parcel["barcode"] for parcel in coordinator.delivered] == ["A"]

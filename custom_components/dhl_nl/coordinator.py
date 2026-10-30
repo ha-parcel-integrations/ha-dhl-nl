@@ -238,9 +238,11 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
         # aiohttp.ClientError is wrapped automatically by DataUpdateCoordinator.
 
         active = filter_active_parcels(raw)
-        delivered = self._apply_delivered_filter(filter_delivered_parcels(raw))
+        all_delivered = filter_delivered_parcels(raw)
+        delivered = self._apply_delivered_filter(all_delivered)
         returning = filter_active_returns(raw)
-        delivered_returns = self._apply_delivered_filter(filter_delivered_returns(raw))
+        all_delivered_returns = filter_delivered_returns(raw)
+        delivered_returns = self._apply_delivered_filter(all_delivered_returns)
         _LOGGER.debug(
             "DHL parcels fetched: %d total, %d active, %d delivered, "
             "%d returning, %d returned",
@@ -260,6 +262,11 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
             "delivered_at",
             descending=True,
         )
+        delivered_sorted = sort_parcels_by_ts(
+            [self._normalize(p) for p in all_delivered],
+            "delivered_at",
+            descending=True,
+        )
         normalized_active = sort_parcels_by_ts(
             [self._normalize(p) for p in active], "planned_from"
         )
@@ -271,15 +278,18 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
             "delivered_at",
             descending=True,
         )
+        delivered_outgoing_sorted = sort_parcels_by_ts(
+            [self._normalize(p) for p in all_delivered_returns],
+            "delivered_at",
+            descending=True,
+        )
 
-        # Incoming = active + delivered, combined so the transition to
-        # delivered is visible in one set (mirrors the outgoing pattern).
-        incoming = normalized_active + self.delivered
+        # Events and remembered state cover every parcel; the retention option
+        # only limits what the delivered sensor shows.
+        incoming = normalized_active + delivered_sorted
         self._fire_change_events(incoming)
 
-        # Outgoing = returns (active) + delivered returns, combined so a
-        # transition from in-transit to delivered is visible in one set.
-        outgoing = self.returning + self.delivered_outgoing
+        outgoing = self.returning + delivered_outgoing_sorted
         self._fire_outgoing_change_events(outgoing)
 
         self._known_state = {
