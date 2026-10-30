@@ -148,6 +148,7 @@ their entity_ids carry the same account suffix:
 | `DHL (account) Delivered parcels` | Recently delivered incoming parcels (configurable window) |
 | `DHL (account) Outgoing parcels` | Number of active outgoing parcels, including return shipments on their way back to a shop |
 | `DHL (account) Outgoing delivered parcels` | Recently delivered outgoing parcels, including completed returns (same configurable window) |
+| `DHL (account) Deliveries` | Read-only calendar of expected deliveries, no extra API calls |
 | `DHL (account) Last update` | Diagnostic timestamp of the last successful poll — alert on this if the integration goes silently stale |
 
 A **`DHL (account) Deliveries`** calendar entity is also created, showing
