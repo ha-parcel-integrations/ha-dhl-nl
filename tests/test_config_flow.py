@@ -276,3 +276,39 @@ async def test_reauth_flow_aborts_on_different_account(hass):
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "unique_id_mismatch"
     assert entry.data[CONF_EMAIL] == _USER_INPUT[CONF_EMAIL]
+
+
+@pytest.mark.asyncio
+async def test_options_flow_reloads_with_the_new_options(hass):
+    """The reload starts after the options are saved, not before."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id=_USER_INPUT[CONF_EMAIL],
+        data=_USER_INPUT,
+        options={
+            CONF_DELIVERED_FILTER_TYPE: "days",
+            CONF_DELIVERED_FILTER_AMOUNT: 7,
+        },
+    )
+    entry.add_to_hass(hass)
+    seen = []
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    with patch.object(
+        hass.config_entries,
+        "async_schedule_reload",
+        side_effect=lambda entry_id: seen.append(dict(entry.options)),
+    ):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            user_input={
+                "delivered": {
+                    CONF_DELIVERED_FILTER_TYPE: "parcels",
+                    CONF_DELIVERED_FILTER_AMOUNT: 30,
+                },
+                "history": {CONF_INCLUDE_HISTORY: True},
+            },
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert seen == [result["data"]]
