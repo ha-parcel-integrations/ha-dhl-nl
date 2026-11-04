@@ -12,7 +12,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -346,6 +346,11 @@ class DhlSentShipmentsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
             self._sent_coordinator.async_add_listener(self.async_write_ha_state)
         )
 
+    @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Opt in to in-place entity_id changes; nothing here is keyed on it."""
+        super().async_entity_id_changed(old_entity_id)
+
     # ------------------------------------------------------------------
     # SensorEntity interface
     # ------------------------------------------------------------------
@@ -407,6 +412,11 @@ class DhlOutgoingDeliveredSensor(CoordinatorEntity[DhlCoordinator], SensorEntity
         self.async_on_remove(
             self._sent_coordinator.async_add_listener(self.async_write_ha_state)
         )
+
+    @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Opt in to in-place entity_id changes; nothing here is keyed on it."""
+        super().async_entity_id_changed(old_entity_id)
 
     def _parcels(self) -> list[dict]:
         """Return delivered own-sender shipments and returns, merged and sorted."""
