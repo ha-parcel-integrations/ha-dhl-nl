@@ -349,7 +349,7 @@ class DhlSentShipmentsSensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     @callback
     def async_entity_id_changed(self, old_entity_id: str) -> None:
         """Opt in to in-place entity_id changes; nothing here is keyed on it."""
-        super().async_entity_id_changed(old_entity_id)
+        super().async_entity_id_changed(old_entity_id)  # type: ignore[misc]
 
     # ------------------------------------------------------------------
     # SensorEntity interface
@@ -416,7 +416,7 @@ class DhlOutgoingDeliveredSensor(CoordinatorEntity[DhlCoordinator], SensorEntity
     @callback
     def async_entity_id_changed(self, old_entity_id: str) -> None:
         """Opt in to in-place entity_id changes; nothing here is keyed on it."""
-        super().async_entity_id_changed(old_entity_id)
+        super().async_entity_id_changed(old_entity_id)  # type: ignore[misc]
 
     def _parcels(self) -> list[dict]:
         """Return delivered own-sender shipments and returns, merged and sorted."""
