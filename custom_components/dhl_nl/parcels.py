@@ -105,11 +105,8 @@ _STATUS_MAP: dict[str, ParcelStatus] = {
     "ON_ROUTE_TO_SHIPPER": ParcelStatus.RETURNING,
     "PARCELSTATION_DELIVERY_UNSUCCESFULL_RETURN": ParcelStatus.RETURNING,
     "PARCEL_ALREADY_RETURNED": ParcelStatus.RETURNING,
-    "PARCEL_READY_FOR_RETURN_TO_HUB": ParcelStatus.RETURNING,
     "PARCEL_RELABELED_FOR_RETURN_TO_SHIPPER": ParcelStatus.RETURNING,
-    "PARCEL_RETURNED_FROM_ROUTE": ParcelStatus.RETURNING,
     "PARCEL_SCANNED_AT_RETURN_HUB": ParcelStatus.RETURNING,
-    "PARCEL_SCANNED_FOR_RETURN_TO_HUB": ParcelStatus.RETURNING,
     "PARCEL_TOO_HEAVY_RETURN": ParcelStatus.RETURNING,
     "PARCEL_TOO_LARGE_RETURN": ParcelStatus.RETURNING,
     "POSTAL_CODE_INCORRECT": ParcelStatus.RETURNING,
@@ -159,6 +156,17 @@ _STATUS_MAP: dict[str, ParcelStatus] = {
     "SHIPMENT_ACCEPTANCE_DEPOT": ParcelStatus.IN_TRANSIT,
     "SHIPMENT_ACCEPTANCE_PARCELSHOP": ParcelStatus.IN_TRANSIT,
     "SHIPMENT_ACCEPTANCE_PARCELSTATION": ParcelStatus.IN_TRANSIT,
+}
+
+# Hub-scan statuses the catalogue vocabulary reuses on both legs: their name
+# says "RETURN" but the catalogue description says "to the sorting center",
+# not "to the sender" — a routine consolidation scan DHL also emits for an
+# ordinary ParcelShop/locker drop-off (ha-dhl-nl#25). Only ``isReturn`` tells
+# the two apart, so they're resolved in map_parcel_status instead of here.
+_AMBIGUOUS_HUB_STATUSES = {
+    "PARCEL_READY_FOR_RETURN_TO_HUB",
+    "PARCEL_RETURNED_FROM_ROUTE",
+    "PARCEL_SCANNED_FOR_RETURN_TO_HUB",
 }
 
 # DHL category (high-level state) → canonical ParcelStatus. Used as a
@@ -231,6 +239,9 @@ def map_parcel_status(parcel: dict) -> ParcelStatus:
     """
     raw_status = parcel.get("status") or ""
     raw_category = parcel.get("category") or ""
+
+    if raw_status in _AMBIGUOUS_HUB_STATUSES:
+        return ParcelStatus.RETURNING if _is_return(parcel) else ParcelStatus.IN_TRANSIT
 
     if raw_status in _STATUS_MAP:
         mapped = _STATUS_MAP[raw_status]

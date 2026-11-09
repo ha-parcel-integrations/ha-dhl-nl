@@ -185,6 +185,27 @@ def test_hub_and_terminal_events_map_without_warning(
     assert status not in caplog.text
 
 
+@pytest.mark.parametrize(
+    "status",
+    [
+        "PARCEL_READY_FOR_RETURN_TO_HUB",
+        "PARCEL_RETURNED_FROM_ROUTE",
+        "PARCEL_SCANNED_FOR_RETURN_TO_HUB",
+    ],
+)
+def test_ambiguous_hub_status_resolves_by_is_return(status):
+    """Regression for issue #25: these statuses say "RETURN" but the
+    catalogue describes them as "to the sorting center" — DHL also emits them
+    for an ordinary ParcelShop/locker drop-off. Only ``isReturn`` tells a real
+    return apart from that outbound leg.
+    """
+    outbound = {"status": status, "category": "UNDERWAY", "isReturn": False}
+    assert map_parcel_status(outbound) == ParcelStatus.IN_TRANSIT
+
+    returning = {"status": status, "category": "UNDERWAY", "isReturn": True}
+    assert map_parcel_status(returning) == ParcelStatus.RETURNING
+
+
 def test_active_parcel_is_included():
     assert filter_active_parcels([parcel_sample("IN_DELIVERY")]) != []
 
