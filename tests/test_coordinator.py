@@ -8,7 +8,6 @@ import pytest
 
 from custom_components.dhl_nl.api import DhlApiError
 from custom_components.dhl_nl.const import (
-    ACTIVE_CATEGORIES,
     CAPABILITIES,
     CONF_DELIVERED_FILTER_AMOUNT,
     CONF_DELIVERED_FILTER_TYPE,
@@ -91,6 +90,39 @@ def test_other_intervention_still_maps_to_problem():
     assert map_parcel_status(parcel) == ParcelStatus.PROBLEM
 
 
+def test_an_outgoing_return_that_reached_the_shipper_is_delivered():
+    parcel = {
+        "status": "RETURN_DELIVERED_AT_SHIPPER_CALCULATED",
+        "category": "DELIVERED",
+        "isReturn": True,
+    }
+    assert map_parcel_status(parcel) == ParcelStatus.DELIVERED
+    assert normalize_parcel(parcel)["delivered"] is True
+
+
+def test_an_incoming_parcel_sent_back_to_the_shipper_is_returning_and_finished():
+    parcel = {
+        "status": "DELIVERED_AT_SHIPPER",
+        "category": "DELIVERED",
+        "isReturn": False,
+    }
+    result = normalize_parcel(parcel)
+    assert result["status"] == ParcelStatus.RETURNING
+    assert result["delivered"] is True
+    assert filter_delivered_parcels([parcel]) == [parcel]
+    assert filter_active_parcels([parcel]) == []
+
+
+def test_an_incoming_parcel_on_its_way_back_is_still_active():
+    parcel = {
+        "status": "ON_ROUTE_TO_SHIPPER",
+        "category": "UNDERWAY",
+        "isReturn": False,
+    }
+    assert normalize_parcel(parcel)["delivered"] is False
+    assert filter_active_parcels([parcel]) == [parcel]
+
+
 @pytest.mark.parametrize(
     ("status", "category", "expected"),
     [
@@ -115,7 +147,7 @@ def test_other_intervention_still_maps_to_problem():
         ("RECEIVER_UNKNOWN_RETURN", "INTERVENTION", ParcelStatus.RETURNING),
         ("STORAGE_PERIOD_ENDED_AT_PARCELSHOP", "UNDERWAY", ParcelStatus.RETURNING),
         ("ON_ROUTE_TO_SHIPPER", "UNDERWAY", ParcelStatus.RETURNING),
-        ("RETURN_DELIVERED_AT_SHIPPER_CALCULATED", "DELIVERED", ParcelStatus.DELIVERED),
+        ("RETURN_DELIVERED_AT_SHIPPER_CALCULATED", "DELIVERED", ParcelStatus.RETURNING),
         ("RETURN_DELIVERED_AT_SHIPPER_CALCULATED", "UNDERWAY", ParcelStatus.RETURNING),
     ],
 )
@@ -214,13 +246,25 @@ def test_delivered_parcel_is_excluded():
     assert filter_active_parcels([parcel_sample("DELIVERED")]) == []
 
 
+def test_the_split_follows_the_mapped_status_not_the_category():
+    collected = {"barcode": "A", "status": "SHIPMENT_COLLECTED", "category": "UNDERWAY"}
+    waiting = {
+        "barcode": "B",
+        "status": "AWAITING_RECEIVER_COLLECTION",
+        "category": "DELIVERED",
+    }
+    assert filter_delivered_parcels([collected, waiting]) == [collected]
+    assert filter_active_parcels([collected, waiting]) == [waiting]
+
+
 def test_return_parcel_is_excluded():
     assert filter_active_parcels([parcel_sample("IN_DELIVERY", is_return=True)]) == []
 
 
 def test_all_active_categories_pass():
-    parcels = [parcel_sample(cat) for cat in ACTIVE_CATEGORIES]
-    assert len(filter_active_parcels(parcels)) == len(ACTIVE_CATEGORIES)
+    categories = ["CUSTOMS", "DATA_RECEIVED", "IN_DELIVERY", "UNDERWAY", "PROBLEM"]
+    parcels = [parcel_sample(cat) for cat in categories]
+    assert len(filter_active_parcels(parcels)) == len(categories)
 
 
 def test_mixed_parcels_filtered_correctly():
@@ -561,7 +605,7 @@ def test_normalize_active_with_moment_indication():
     assert result["delivered"] is False
     assert result["delivered_at"] is None
     assert result["planned_from"] == "2026-06-15T14:00:00+02:00"
-    assert result["planned_to"] is None
+    assert result["planned_to"] == "2026-06-15T23:59:59+02:00"
     assert result["pickup"] is False
     assert result["pickup_point"] is None
     assert result["raw"] == parcel

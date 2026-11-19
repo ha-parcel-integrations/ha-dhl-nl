@@ -107,7 +107,8 @@ Session recovery lives here, not in the coordinators.
 same raw payload: `filter_active_parcels()` / `filter_delivered_parcels()` (both
 exclude returns) for the incoming lists, `filter_active_returns()` /
 `filter_delivered_returns()` (both require `isReturn`) for the return lists,
-stored as `returning` / `delivered_outgoing`.
+stored as `returning` / `delivered_outgoing`. Active versus delivered follows the
+mapped status (`delivered`; an incoming parcel sent back to the shipper counts once its category says it arrived), not DHL's `category` alone.
 
 `DhlSentShipmentsCoordinator` polls `async_get_sent_shipments()` and applies
 `filter_active_sent_shipments()` / `filter_delivered_sent_shipments()`. This is
@@ -128,8 +129,8 @@ Both coordinators raise `UpdateFailed` on any `DhlApiError` or
 |---|---|
 | `DhlIncomingParcelsSensor` | summary of active incoming; also owns per-parcel entity lifecycle |
 | `DhlParcelSensor` | one entity per active incoming parcel, keyed by barcode |
-| `DhlNextDeliverySensor` | earliest `receivingTimeIndication.moment` across active parcels (TIMESTAMP) |
-| `DhlEnRouteToPickupPointSensor` | active pickup-point parcels not yet arrived |
+| `DhlNextDeliverySensor` | earliest `planned_from` across active parcels whose window has not ended (TIMESTAMP) |
+| `DhlEnRouteToPickupPointSensor` | active pickup-point parcels not yet arrived and not returning |
 | `DhlAwaitingPickupSensor` | active pickup-point parcels already arrived (awaiting collection) |
 | `DhlDeliveredParcelsSensor` | `coordinator.delivered` |
 | `DhlSentShipmentsSensor` | `sent_coordinator.data` + `coordinator.returning` |
@@ -252,7 +253,7 @@ to `DhlSentShipmentsCoordinator` in `async_added_to_hass`
 
 ### Filtering happens at the coordinator, not the sensor
 
-Filtering — active categories, return splitting — happens in the coordinator.
+Filtering — active versus delivered (by mapped status), return splitting — happens in the coordinator.
 This keeps sensors simple and makes the filtered data the single source of truth
 for every entity.
 

@@ -142,25 +142,25 @@ def test_next_delivery_moment_indication():
     parcel = _parcel(
         indication={
             "indicationType": "MomentIndication",
-            "moment": "2026-05-20T10:00:00Z",
+            "moment": "2099-05-20T10:00:00Z",
         }
     )
     sensor = DhlNextDeliverySensor(_make_coordinator([parcel]), USER_INFO)
     result = sensor.native_value
-    assert result == datetime(2026, 5, 20, 10, 0, 0, tzinfo=UTC)
+    assert result == datetime(2099, 5, 20, 10, 0, 0, tzinfo=UTC)
 
 
 def test_next_delivery_interval_indication_uses_start():
     parcel = _parcel(
         indication={
             "indicationType": "IntervalIndication",
-            "start": "2026-05-20T08:00:00Z",
-            "end": "2026-05-20T16:00:00Z",
+            "start": "2099-05-20T08:00:00Z",
+            "end": "2099-05-20T16:00:00Z",
         }
     )
     sensor = DhlNextDeliverySensor(_make_coordinator([parcel]), USER_INFO)
     result = sensor.native_value
-    assert result == datetime(2026, 5, 20, 8, 0, 0, tzinfo=UTC)
+    assert result == datetime(2099, 5, 20, 8, 0, 0, tzinfo=UTC)
 
 
 def test_next_delivery_picks_earliest_of_multiple_parcels():
@@ -169,19 +169,60 @@ def test_next_delivery_picks_earliest_of_multiple_parcels():
             "A",
             indication={
                 "indicationType": "MomentIndication",
-                "moment": "2026-05-22T10:00:00Z",
+                "moment": "2099-05-22T10:00:00Z",
             },
         ),
         _parcel(
             "B",
             indication={
                 "indicationType": "MomentIndication",
-                "moment": "2026-05-20T10:00:00Z",
+                "moment": "2099-05-20T10:00:00Z",
             },
         ),
     ]
     sensor = DhlNextDeliverySensor(_make_coordinator(parcels), USER_INFO)
-    assert sensor.native_value == datetime(2026, 5, 20, 10, 0, 0, tzinfo=UTC)
+    assert sensor.native_value == datetime(2099, 5, 20, 10, 0, 0, tzinfo=UTC)
+
+
+def test_next_delivery_skips_a_window_that_has_ended():
+    parcels = [
+        _parcel(
+            "STALE",
+            indication={
+                "indicationType": "IntervalIndication",
+                "start": "2000-05-20T08:00:00Z",
+                "end": "2000-05-20T16:00:00Z",
+            },
+        ),
+        _parcel(
+            "MOMENT",
+            indication={
+                "indicationType": "MomentIndication",
+                "moment": "2000-05-20T10:00:00Z",
+            },
+        ),
+        _parcel(
+            "NEXT",
+            indication={
+                "indicationType": "MomentIndication",
+                "moment": "2099-05-20T10:00:00Z",
+            },
+        ),
+    ]
+    sensor = DhlNextDeliverySensor(_make_coordinator(parcels), USER_INFO)
+    assert sensor.extra_state_attributes["barcode"] == "NEXT"
+
+
+def test_next_delivery_keeps_a_window_that_is_still_running():
+    parcel = _parcel(
+        indication={
+            "indicationType": "IntervalIndication",
+            "start": "2000-05-20T08:00:00Z",
+            "end": "2099-05-20T16:00:00Z",
+        }
+    )
+    sensor = DhlNextDeliverySensor(_make_coordinator([parcel]), USER_INFO)
+    assert sensor.native_value == datetime(2000, 5, 20, 8, 0, 0, tzinfo=UTC)
 
 
 def test_next_delivery_none_when_no_indication():
@@ -196,7 +237,7 @@ def test_next_delivery_none_when_no_parcels():
 
 def test_next_delivery_skips_unknown_indication_type():
     parcel = _parcel(
-        indication={"indicationType": "UnknownType", "moment": "2026-05-20T10:00:00Z"}
+        indication={"indicationType": "UnknownType", "moment": "2099-05-20T10:00:00Z"}
     )
     sensor = DhlNextDeliverySensor(_make_coordinator([parcel]), USER_INFO)
     assert sensor.native_value is None
@@ -218,6 +259,15 @@ def test_en_route_counts_servicepoint_parcels_in_transit():
 
 def test_en_route_excludes_arrived_at_servicepoint():
     parcel = _parcel(location_type="SERVICEPOINT", status=STATUS_AT_SERVICE_POINT)
+    sensor = DhlEnRouteToPickupPointSensor(_make_coordinator([parcel]), USER_INFO)
+    assert sensor.native_value == 0
+
+
+def test_en_route_excludes_a_returning_pickup_parcel():
+    parcel = _parcel(
+        location_type="SERVICEPOINT", status="RETURNED_TO_SHIPPER", category="UNDERWAY"
+    )
+    assert parcel["status"] is ParcelStatus.RETURNING
     sensor = DhlEnRouteToPickupPointSensor(_make_coordinator([parcel]), USER_INFO)
     assert sensor.native_value == 0
 
@@ -305,7 +355,10 @@ def test_delivered_sensor_attributes_handle_missing_sender():
 
 
 def _return_parcel(barcode: str = "RET123", category: str = "UNDERWAY") -> dict:
-    return normalize_parcel(return_sample(barcode, category))
+    raw = return_sample(barcode, category)
+    if category == "DELIVERED":
+        raw["status"] = "RETURNED_TO_SHIPPER"
+    return normalize_parcel(raw)
 
 
 def _sent_shipment(barcode: str = "SENT123") -> dict:

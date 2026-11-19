@@ -131,6 +131,24 @@ sourced from `DhlCoordinator`, not the sent coordinator.
 **Diagnostics** redact credentials + PII: `name` (raw payloads) and normalized
 `receiver` are in `TO_REDACT`. Over-redact — they get pasted into public issues.
 
+## Parcel contract: window, pickup, delivered
+
+- `normalize_parcel` builds `planned_from` / `planned_to` with `planned_window`
+  (zone `Europe/Amsterdam`, so a single moment runs to 23:59:59 of the local
+  day, also when DHL sends it in UTC) and empties them with
+  `planned_for_status` at `at_pickup_point`, `returning` and `delivered`.
+- `pickup` is `is_pickup`: the `SERVICEPOINT` destination, else a history
+  event that reached `at_pickup_point`; it stays true once collected.
+  `pickup_point` is only the name of a `SERVICEPOINT` destination.
+- `delivered` is `status is DELIVERED`, or `returning` once DHL's category says
+  it arrived at the shipper; the active/delivered filters split on it.
+- A completed webshop return (`isReturn`) keeps status `delivered`, not
+  `returning`: it is an outgoing parcel, and the outgoing delivered event only
+  fires on `delivered`. An *incoming* parcel DHL sends back to the shipper
+  stays `returning` with `delivered` true and fires no delivered event.
+- `next_delivery` skips a parcel whose window has ended; the calendar shows a
+  00:00:00–23:59:59 window as an all-day event.
+
 ## Planned / skipped
 
 - **Planned (next major)**: exception translations — `UpdateFailed(f"...")`

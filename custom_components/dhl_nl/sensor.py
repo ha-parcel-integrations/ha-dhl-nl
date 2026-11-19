@@ -16,6 +16,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
 from . import DhlConfigEntry
 from .const import DOMAIN, ParcelStatus
@@ -467,6 +468,7 @@ class DhlNextDeliverySensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
     def _delivery_moments(self) -> list[tuple[datetime, dict]]:
         """Return (datetime, parcel) pairs for parcels with a known ``planned_from``."""
         result: list[tuple[datetime, dict]] = []
+        now = dt_util.utcnow()
         for parcel in self.coordinator.data or []:
             moment_str = parcel.get("planned_from")
             if not moment_str:
@@ -475,9 +477,15 @@ class DhlNextDeliverySensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
                 dt = datetime.fromisoformat(moment_str)
                 if dt.tzinfo is None:
                     dt = dt.replace(tzinfo=UTC)
-                result.append((dt, parcel))
+                end = datetime.fromisoformat(parcel.get("planned_to") or moment_str)
+                if end.tzinfo is None:
+                    end = end.replace(tzinfo=UTC)
             except ValueError:
                 _LOGGER.debug("Could not parse delivery moment: %s", moment_str)
+                continue
+            if end < now:
+                continue
+            result.append((dt, parcel))
         return result
 
     @property
@@ -532,7 +540,9 @@ class DhlEnRouteToPickupPointSensor(CoordinatorEntity[DhlCoordinator], SensorEnt
         return [
             p
             for p in (self.coordinator.data or [])
-            if p.get("pickup") and p.get("status") != ParcelStatus.AT_PICKUP_POINT
+            if p.get("pickup")
+            and p.get("status")
+            not in (ParcelStatus.AT_PICKUP_POINT, ParcelStatus.RETURNING)
         ]
 
     @property

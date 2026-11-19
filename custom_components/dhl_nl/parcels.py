@@ -7,13 +7,15 @@ the coordinator (fetching, caching, events) so it stays trivially unit-testable.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from collections.abc import Iterable
+from datetime import UTC, date, datetime, time, timedelta, tzinfo
 import logging
+from typing import Any
+from zoneinfo import ZoneInfo
 
 from homeassistant.config_entries import ConfigEntry
 
 from .const import (
-    ACTIVE_CATEGORIES,
     CONF_DELIVERED_FILTER_AMOUNT,
     CONF_DELIVERED_FILTER_TYPE,
     DEFAULT_DELIVERED_FILTER_AMOUNT,
@@ -25,6 +27,8 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+_ZONE = ZoneInfo("Europe/Amsterdam")
 
 
 # Granular DHL status strings → canonical ParcelStatus. Status takes
@@ -245,9 +249,14 @@ def map_parcel_status(parcel: dict) -> ParcelStatus:
 
     if raw_status in _STATUS_MAP:
         mapped = _STATUS_MAP[raw_status]
-        # A return that reached the shipper is finished: the category says
-        # DELIVERED, so the status must agree with ``delivered``.
-        if mapped == ParcelStatus.RETURNING and raw_category == "DELIVERED":
+        # A return the account sends back (isReturn) that reached the shipper
+        # is a delivery for the outgoing side; an incoming parcel DHL sends
+        # back stays ``returning``.
+        if (
+            mapped == ParcelStatus.RETURNING
+            and raw_category == "DELIVERED"
+            and _is_return(parcel)
+        ):
             return ParcelStatus.DELIVERED
         return mapped
 
@@ -372,8 +381,8 @@ def build_history(
     return ordered[-max_events:]
 
 
-def _delivery_window(parcel: dict) -> tuple[str | None, str | None]:
-    """Return (from, to) ISO 8601 strings from receivingTimeIndication."""
+def _delivery_window(parcel: dict) -> tuple[Any, Any]:
+    """Return the raw (start, end) of receivingTimeIndication."""
     indication = parcel.get("receivingTimeIndication") or {}
     indication_type = indication.get("indicationType")
     if indication_type == "MomentIndication":
@@ -410,6 +419,108 @@ def _tracking_url(parcel: dict) -> str | None:
     return f"https://my.dhlecommerce.nl/portal/tracktrace/{barcode}/{postal}"
 
 
+def _moment(value: Any, zone: tzinfo) -> tuple[datetime, bool, str] | None:
+    """Return ``(aware datetime, date_only, text)`` for a carrier time, or ``None``.
+
+    A naive time or a bare date gets ``zone``; an aware time keeps its offset
+    and, when it came in as a string, its own spelling.
+    """
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, date):
+        moment = datetime.combine(value, time.min, tzinfo=zone)
+        return moment, True, moment.isoformat()
+    elif isinstance(value, str) and value:
+        try:
+            if len(value) == 10:
+                moment = datetime.combine(
+                    date.fromisoformat(value), time.min, tzinfo=zone
+                )
+                return moment, True, moment.isoformat()
+            parsed = datetime.fromisoformat(value)
+        except ValueError:
+            return None
+        if parsed.tzinfo:
+            return parsed, False, value
+    else:
+        return None
+    moment = parsed if parsed.tzinfo else parsed.replace(tzinfo=zone)
+    return moment, False, moment.isoformat()
+
+
+def _end_of_day(moment: datetime, zone: tzinfo) -> datetime:
+    local = moment.astimezone(zone)
+    return datetime.combine(local.date(), time(23, 59, 59), tzinfo=zone)
+
+
+def planned_window(
+    start: Any, end: Any, *, zone: tzinfo
+) -> tuple[str | None, str | None]:
+    """Return ``(planned_from, planned_to)`` in the canonical window shape.
+
+    ``start`` and ``end`` are ISO strings, dates or datetimes, or ``None``; an
+    epoch number must be converted first (see ``to_iso_timestamp``). A window
+    keeps both ends. One moment with a time ends at ``23:59:59`` the same local
+    day; a date covers ``00:00:00`` to ``23:59:59``; two dates run from the
+    first day's start to the last day's end. Equal values are one moment,
+    reversed values are swapped, and ``planned_to`` is never set without
+    ``planned_from``. ``zone`` is the carrier's own zone: it dates naive times
+    and bare dates and decides which day a moment ends on, so a ``Z`` moment
+    still ends on the carrier's local day. When nothing is left of that day
+    after the moment, there is no ``planned_to``.
+    """
+    first = _moment(start, zone)
+    last = _moment(end, zone)
+    if first is None:
+        first, last = last, None
+    if first is None:
+        return None, None
+
+    def closing(moment: tuple[datetime, bool, str]) -> datetime:
+        return _end_of_day(moment[0], zone) if moment[1] else moment[0]
+
+    if last is not None and closing(last) < first[0]:
+        first, last = last, first
+    if last is not None and closing(last) == first[0]:
+        last = None
+
+    if last is None:
+        end_of_day = _end_of_day(first[0], zone)
+        return first[2], end_of_day.isoformat() if end_of_day > first[0] else None
+    return first[2], closing(last).isoformat() if last[1] else last[2]
+
+
+_NO_WINDOW_STATUSES = frozenset(
+    {ParcelStatus.AT_PICKUP_POINT, ParcelStatus.RETURNING, ParcelStatus.DELIVERED}
+)
+
+
+def planned_for_status(
+    status: ParcelStatus, planned_from: str | None, planned_to: str | None
+) -> tuple[str | None, str | None]:
+    """Empty the delivery window once the parcel is at its destination or done."""
+    if status in _NO_WINDOW_STATUSES:
+        return None, None
+    return planned_from, planned_to
+
+
+def is_pickup(
+    route_flag: bool | None,
+    status: ParcelStatus,
+    event_statuses: Iterable[ParcelStatus | None] = (),
+) -> bool:
+    """Whether the delivery route ends at a pickup point.
+
+    The carrier's own route flag wins; otherwise the parcel having reached
+    ``AT_PICKUP_POINT`` at any point counts, so the value survives collection.
+    """
+    if route_flag:
+        return True
+    return status is ParcelStatus.AT_PICKUP_POINT or any(
+        event is ParcelStatus.AT_PICKUP_POINT for event in event_statuses
+    )
+
+
 def normalize_parcel(parcel: dict, *, history: list[dict] | None = None) -> dict:
     """Return a carrier-agnostic parcel dict with the original DHL payload under ``raw``.
 
@@ -425,23 +536,36 @@ def normalize_parcel(parcel: dict, *, history: list[dict] | None = None) -> dict
     sender = parcel.get("sender") or {}
     receiver = parcel.get("receiver") or {}
     destination = parcel.get("destination") or {}
-    delivered = parcel.get("category") == "DELIVERED"
+    status = map_parcel_status(parcel)
+    delivered = _is_delivered(parcel, status)
     moment_from, moment_to = _delivery_window(parcel)
-    is_pickup = destination.get("locationType") == "SERVICEPOINT"
+    planned_from, planned_to = planned_for_status(
+        status,
+        *planned_window(moment_from, moment_to, zone=_ZONE),
+    )
+    pickup = is_pickup(
+        destination.get("locationType") == "SERVICEPOINT",
+        status,
+        (event.get("status") for event in history or []),
+    )
 
     return {
         "carrier": "DHL",
         "barcode": parcel.get("barcode"),
         "sender": sender.get("name"),
         "receiver": receiver.get("name"),
-        "status": map_parcel_status(parcel),
+        "status": status,
         "raw_status": parcel.get("status"),
         "delivered": delivered,
         "delivered_at": moment_from if delivered else None,
-        "planned_from": None if delivered else moment_from,
-        "planned_to": None if delivered else moment_to,
-        "pickup": is_pickup,
-        "pickup_point": destination.get("name") if is_pickup else None,
+        "planned_from": planned_from,
+        "planned_to": planned_to,
+        "pickup": pickup,
+        "pickup_point": (
+            destination.get("name")
+            if destination.get("locationType") == "SERVICEPOINT"
+            else None
+        ),
         "url": _tracking_url(parcel),
         "weight": None,
         "dimensions": None,
@@ -450,38 +574,38 @@ def normalize_parcel(parcel: dict, *, history: list[dict] | None = None) -> dict
     }
 
 
+def _is_delivered(parcel: dict, status: ParcelStatus | None = None) -> bool:
+    """Whether the parcel's journey is over.
+
+    Delivered, or on its way back to the shipper and DHL's category says it has
+    arrived there.
+    """
+    status = status or map_parcel_status(parcel)
+    return status is ParcelStatus.DELIVERED or (
+        status is ParcelStatus.RETURNING and parcel.get("category") == "DELIVERED"
+    )
+
+
 def filter_active_parcels(parcels: list[dict]) -> list[dict]:
-    """Return only active incoming parcels (not returns, in an active category)."""
-    return [
-        p
-        for p in parcels
-        if not _is_return(p) and p.get("category") in ACTIVE_CATEGORIES
-    ]
+    """Return only active incoming parcels (not returns, not delivered)."""
+    return [p for p in parcels if not _is_return(p) and not _is_delivered(p)]
 
 
 def filter_delivered_parcels(parcels: list[dict]) -> list[dict]:
-    """Return delivered incoming parcels (not returns, category DELIVERED)."""
-    return [
-        p for p in parcels if not _is_return(p) and p.get("category") == "DELIVERED"
-    ]
+    """Return delivered incoming parcels (not returns), including one DHL sent back."""
+    return [p for p in parcels if not _is_return(p) and _is_delivered(p)]
 
 
 def filter_active_sent_shipments(shipments: list[dict]) -> list[dict]:
     """Return only outgoing shipments that are still in transit (not yet delivered)."""
     return [
-        s
-        for s in shipments
-        if s.get("type") == "outgoing" and s.get("category") in ACTIVE_CATEGORIES
+        s for s in shipments if s.get("type") == "outgoing" and not _is_delivered(s)
     ]
 
 
 def filter_delivered_sent_shipments(shipments: list[dict]) -> list[dict]:
     """Return outgoing shipments that have been delivered."""
-    return [
-        s
-        for s in shipments
-        if s.get("type") == "outgoing" and s.get("category") == "DELIVERED"
-    ]
+    return [s for s in shipments if s.get("type") == "outgoing" and _is_delivered(s)]
 
 
 def filter_active_returns(parcels: list[dict]) -> list[dict]:
@@ -495,14 +619,12 @@ def filter_active_returns(parcels: list[dict]) -> list[dict]:
     DHL-specific "return" name — externally a return is just one more way
     a parcel becomes outgoing, same as PostNL's model.
     """
-    return [
-        p for p in parcels if _is_return(p) and p.get("category") in ACTIVE_CATEGORIES
-    ]
+    return [p for p in parcels if _is_return(p) and not _is_delivered(p)]
 
 
 def filter_delivered_returns(parcels: list[dict]) -> list[dict]:
     """Return return parcels that have arrived back at the shipper."""
-    return [p for p in parcels if _is_return(p) and p.get("category") == "DELIVERED"]
+    return [p for p in parcels if _is_return(p) and _is_delivered(p)]
 
 
 def _delivery_dt(parcel: dict) -> datetime | None:

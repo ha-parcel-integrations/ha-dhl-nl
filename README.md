@@ -169,9 +169,9 @@ Every parcel exposed on a sensor attribute uses a carrier-agnostic shape:
 | `raw_status` | string \| null | Original DHL status string (for power users) |
 | `delivered` | bool | Whether the parcel has been delivered |
 | `delivered_at` | ISO 8601 \| null | Delivery moment, if known |
-| `planned_from` | ISO 8601 \| null | Expected delivery window start |
-| `planned_to` | ISO 8601 \| null | Expected delivery window end |
-| `pickup` | bool | Destined for a pickup point rather than a home address |
+| `planned_from` | ISO 8601 \| null | Expected delivery window start; empty once the parcel is at a ServicePoint, returning or delivered |
+| `planned_to` | ISO 8601 \| null | Expected delivery window end; a single delivery time runs to the end of that day |
+| `pickup` | bool | Destined for a pickup point rather than a home address; stays true after collection |
 | `pickup_point` | string \| null | ServicePoint name when `pickup` is true |
 | `url` | string \| null | Deep link to the parcel's tracking page |
 | `weight` | float \| null | Parcel weight in kilograms. Always `null` for DHL — the API does not expose it. |
