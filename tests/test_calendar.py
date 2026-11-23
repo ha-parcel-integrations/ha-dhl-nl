@@ -165,3 +165,21 @@ async def test_all_day_events_are_upcoming_and_filtered_by_range():
     end = datetime(2100, 1, 1, tzinfo=UTC)
     events = await cal.async_get_events(MagicMock(), start, end)
     assert {e.uid for e in events} == {"FUTURE"}
+
+
+def test_contents_is_the_event_title():
+    parcel = _parcel("A", _moment("2099-01-01T10:00:00Z"))
+    parcel["contents"] = "Garden hose"
+    assert _calendar([parcel])._events()[0].summary == "Garden hose"
+
+
+def test_title_falls_back_to_sender_without_contents():
+    parcel = _parcel("A", _moment("2099-01-01T10:00:00Z"))
+    assert parcel["contents"] is None
+    assert _calendar([parcel])._events()[0].summary == "Example Sender"
+
+
+def test_title_keeps_the_old_fallback_without_contents_or_sender():
+    parcel = _parcel("A", _moment("2099-01-01T10:00:00Z"))
+    parcel["sender"] = None
+    assert _calendar([parcel])._events()[0].summary == "Parcel A"
