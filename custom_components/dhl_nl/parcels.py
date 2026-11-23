@@ -292,6 +292,11 @@ def map_event_status(event_key: str | None, phase: str | None) -> ParcelStatus |
     if event_key and event_key in _STATUS_MAP:
         return _STATUS_MAP[event_key]
 
+    # Only incoming parcels get a history (returns fetch none), and for those
+    # these hub scans are the routine sorting-center leg.
+    if event_key in _AMBIGUOUS_HUB_STATUSES:
+        return ParcelStatus.IN_TRANSIT
+
     # event_key itself is unmapped — same one-shot-warning rule as
     # map_parcel_status: log it even when the phase fallback below still
     # yields a result, so an unmapped key never hides behind it.

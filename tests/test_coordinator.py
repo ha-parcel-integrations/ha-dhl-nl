@@ -238,6 +238,19 @@ def test_ambiguous_hub_status_resolves_by_is_return(status):
     assert map_parcel_status(returning) == ParcelStatus.RETURNING
 
 
+@pytest.mark.parametrize(
+    "key",
+    [
+        "PARCEL_READY_FOR_RETURN_TO_HUB",
+        "PARCEL_RETURNED_FROM_ROUTE",
+        "PARCEL_SCANNED_FOR_RETURN_TO_HUB",
+    ],
+)
+def test_ambiguous_hub_event_is_in_transit_without_a_warning(key, caplog):
+    assert map_event_status(key, "UNDERWAY") == ParcelStatus.IN_TRANSIT
+    assert key not in caplog.text
+
+
 def test_active_parcel_is_included():
     assert filter_active_parcels([parcel_sample("IN_DELIVERY")]) != []
 
