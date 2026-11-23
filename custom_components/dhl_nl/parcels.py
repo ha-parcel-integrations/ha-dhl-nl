@@ -554,6 +554,7 @@ def normalize_parcel(parcel: dict, *, history: list[dict] | None = None) -> dict
         "barcode": parcel.get("barcode"),
         "sender": sender.get("name"),
         "receiver": receiver.get("name"),
+        "contents": None,
         "status": status,
         "raw_status": parcel.get("status"),
         "delivered": delivered,

@@ -18,6 +18,7 @@ TO_REDACT = {
     "barcode",
     "name",
     "receiver",
+    "contents",
     "postalCode",
     "street",
     "houseNumber",

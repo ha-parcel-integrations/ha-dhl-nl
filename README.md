@@ -20,6 +20,7 @@ A custom Home Assistant integration that tracks your incoming and outgoing DHL e
 - [Options](#options)
 - [Removal](#removal)
 - [Sensors](#sensors)
+- [Actions](#actions)
 - [Parcel status reference](#parcel-status-reference)
 - [Events](#events)
 - [Examples](#examples)
@@ -165,6 +166,7 @@ Every parcel exposed on a sensor attribute uses a carrier-agnostic shape:
 | `barcode` | string | Parcel tracking number |
 | `sender` | string \| null | Sender name (e.g. webshop) |
 | `receiver` | string \| null | Recipient name (e.g. the household member the parcel is addressed to) |
+| `contents` | string \| null | What is in the parcel, as set with `dhl_nl.update_contents`; `null` until you set it |
 | `status` | `ParcelStatus` | Canonical status — see the [status reference](#parcel-status-reference) |
 | `raw_status` | string \| null | Original DHL status string (for power users) |
 | `delivered` | bool | Whether the parcel has been delivered |
@@ -178,6 +180,12 @@ Every parcel exposed on a sensor attribute uses a carrier-agnostic shape:
 | `dimensions` | dict \| null | Parcel dimensions in centimeters. Always `null` for DHL — same reason as `weight`. |
 | `history` | list \| null | Ordered status timeline (oldest → newest), each entry `{timestamp, status, raw_status}` where `raw_status` is the DHL event code. Capped to the most recent 20. `null` unless the **Parcel history** option is enabled — see [Options](#options). |
 | `raw` | dict | The original DHL API payload |
+
+## Actions
+
+| Action | Description |
+|---|---|
+| `dhl_nl.update_contents` | Set, replace or clear (empty text) what is in a parcel for a barcode; with several accounts it goes to the account that lists the barcode, or the one chosen in `config_entry_id` |
 
 ## Parcel status reference
 

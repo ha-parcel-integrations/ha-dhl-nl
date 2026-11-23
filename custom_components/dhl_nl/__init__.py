@@ -7,15 +7,17 @@ import logging
 from typing import Any
 
 import aiohttp
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import DhlApiClient, DhlApiError, DhlAuthError
-from .const import PLATFORMS
+from .const import DOMAIN, PLATFORMS
+from .contents import ContentsStore
 from .coordinator import DhlCoordinator, DhlSentShipmentsCoordinator
+from .services import async_setup_services, async_unload_services
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -65,7 +67,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: DhlConfigEntry) -> bool:
         raise ConfigEntryNotReady("DHL login failed") from exc
 
     coordinator = DhlCoordinator(hass, client, entry)
-    sent_coordinator = DhlSentShipmentsCoordinator(hass, client, entry)
+    sent_coordinator = DhlSentShipmentsCoordinator(
+        hass, client, entry, coordinator.contents_store
+    )
+    await coordinator.contents_store.async_load()
 
     try:
         # Fetch initial data here, before forwarding to platforms. Raising
@@ -97,6 +102,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: DhlConfigEntry) -> bool:
         await session.close()
         raise
 
+    async_setup_services(hass)
+
     return True
 
 
@@ -104,5 +111,17 @@ async def async_unload_entry(hass: HomeAssistant, entry: DhlConfigEntry) -> bool
     """Unload a DHL config entry."""
     if await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         await entry.runtime_data.session.close()
+        # The services are shared by every account, so they go with the last one.
+        if not any(
+            other.state is ConfigEntryState.LOADED
+            for other in hass.config_entries.async_entries(DOMAIN)
+            if other.entry_id != entry.entry_id
+        ):
+            async_unload_services(hass)
         return True
     return False
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: DhlConfigEntry) -> None:
+    """Delete the contents the user set for the removed entry."""
+    await ContentsStore(hass, entry.entry_id).async_remove()

@@ -97,3 +97,9 @@ STATUS_COLLECTED_AT_SERVICE_POINT = "COLLECTED_AT_PARCELSHOP"
 COOKIE_AUTH = "X-AUTH-TOKEN"
 COOKIE_XSRF = "XSRF-TOKEN"
 HEADER_XSRF = "x-xsrf-token"
+
+# The user-set parcel contents, the barcode the contents action is keyed on, and
+# the optional account it is limited to.
+CONF_CONTENTS = "contents"
+CONF_BARCODE = "barcode"
+CONF_CONFIG_ENTRY_ID = "config_entry_id"

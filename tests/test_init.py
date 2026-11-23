@@ -205,3 +205,32 @@ async def test_options_flow_schedules_reload(hass):
         await hass.async_block_till_done()
 
     assert mock_get_parcels.await_count > baseline_calls
+
+
+@pytest.mark.asyncio
+async def test_a_failed_platform_setup_closes_the_session(hass):
+    """A platform failure must not leak the dedicated session on every retry."""
+    entry = _add_entry(hass)
+    with (
+        patch(
+            "custom_components.dhl_nl.DhlApiClient.async_login",
+            new=AsyncMock(return_value=_USER_INFO),
+        ),
+        patch(
+            "custom_components.dhl_nl.DhlApiClient.async_get_parcels",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "custom_components.dhl_nl.DhlApiClient.async_get_sent_shipments",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
+            new=AsyncMock(side_effect=RuntimeError("boom")),
+        ),
+        patch("aiohttp.ClientSession.close", new=AsyncMock()) as close,
+    ):
+        assert not await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert close.await_count == 1

@@ -26,6 +26,7 @@ from .const import (
     STAGGER_MINUTES,
     ParcelStatus,
 )
+from .contents import ContentsStore, normalize_code
 from .parcels import (
     _apply_delivered_filter,
     build_history,
@@ -40,6 +41,14 @@ from .parcels import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _apply_contents(store: ContentsStore | None, parcel: dict, code: object) -> dict:
+    """Put the user's own contents text over the carrier's, when there is one."""
+    user_value = store.get(code) if store is not None and code else None
+    if user_value is not None:
+        parcel["contents"] = user_value
+    return parcel
 
 
 def _stagger_minutes(entry_id: str) -> int:
@@ -107,6 +116,12 @@ def _next_update_interval(now: datetime, tier_minutes: int, entry_id: str) -> ti
     return candidate - now
 
 
+def _known_codes(parcels: list[dict]) -> frozenset[str]:
+    return frozenset(
+        normalize_code(parcel["barcode"]) for parcel in parcels if parcel.get("barcode")
+    )
+
+
 class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
     """Coordinator that polls the DHL parcels API on the dynamic schedule."""
 
@@ -135,6 +150,8 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
             update_interval=timedelta(minutes=HOT_INTERVAL_MINUTES),
         )
         self._client = client
+        self.contents_store = ContentsStore(hass, entry.entry_id)
+        self.known_codes: frozenset[str] = frozenset()
         self.delivered: list[dict] = []
         # Return parcels — sourced from the same parcels list as incoming,
         # filtered on isReturn instead of excluded. ``returning`` mirrors
@@ -212,7 +229,9 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
         """Normalize a raw parcel, attaching any cached history timeline."""
         barcode = parcel.get("barcode") or ""
         history = (self._history_cache.get(barcode) or {}).get("history")
-        return normalize_parcel(parcel, history=history)
+        return _apply_contents(
+            self.contents_store, normalize_parcel(parcel, history=history), barcode
+        )
 
     async def _async_update_data(self) -> list[dict]:
         try:
@@ -287,9 +306,12 @@ class DhlCoordinator(DataUpdateCoordinator[list[dict]]):
         # Events and remembered state cover every parcel; the retention option
         # only limits what the delivered sensor shows.
         incoming = normalized_active + delivered_sorted
+        outgoing = self.returning + delivered_outgoing_sorted
+        # Every code the account lists, delivered ones past the retention filter
+        # included: update_contents asks which account a code belongs to.
+        self.known_codes = _known_codes(incoming + outgoing)
         self._fire_change_events(incoming)
 
-        outgoing = self.returning + delivered_outgoing_sorted
         self._fire_outgoing_change_events(outgoing)
 
         self._known_state = {
@@ -491,7 +513,11 @@ class DhlSentShipmentsCoordinator(DataUpdateCoordinator[list[dict]]):
     config_entry: ConfigEntry
 
     def __init__(
-        self, hass: HomeAssistant, client: DhlApiClient, entry: ConfigEntry
+        self,
+        hass: HomeAssistant,
+        client: DhlApiClient,
+        entry: ConfigEntry,
+        contents_store: ContentsStore | None = None,
     ) -> None:
         """Initialise the coordinator.
 
@@ -499,6 +525,8 @@ class DhlSentShipmentsCoordinator(DataUpdateCoordinator[list[dict]]):
             hass: The Home Assistant instance.
             client: An authenticated :class:`DhlApiClient` instance.
             entry: The config entry, used to read the delivered filter option.
+            contents_store: The account's user-set contents, shared with
+                :class:`DhlCoordinator`; without it no contents are overlaid.
 
         """
         super().__init__(
@@ -512,6 +540,8 @@ class DhlSentShipmentsCoordinator(DataUpdateCoordinator[list[dict]]):
             update_interval=timedelta(minutes=HOT_INTERVAL_MINUTES),
         )
         self._client = client
+        self._contents_store = contents_store
+        self.known_codes: frozenset[str] = frozenset()
         # Delivered own-sender shipments. In practice this stays empty for
         # almost every account (see filter_active_returns docstring), but is
         # tracked for parity so the sensor layer can merge it with delivered
@@ -530,6 +560,12 @@ class DhlSentShipmentsCoordinator(DataUpdateCoordinator[list[dict]]):
     def current_tier_minutes(self) -> int | None:
         """Tier minutes computed on the last refresh (diagnostics only)."""
         return self._current_tier_minutes
+
+    def _normalize(self, parcel: dict) -> dict:
+        """Normalize a raw sent shipment, overlaying the user's contents."""
+        return _apply_contents(
+            self._contents_store, normalize_parcel(parcel), parcel.get("barcode")
+        )
 
     async def _async_update_data(self) -> list[dict]:
         try:
@@ -565,13 +601,14 @@ class DhlSentShipmentsCoordinator(DataUpdateCoordinator[list[dict]]):
             len(delivered),
         )
         self.delivered = sort_parcels_by_ts(
-            [normalize_parcel(s) for s in delivered],
+            [self._normalize(s) for s in delivered],
             "delivered_at",
             descending=True,
         )
         normalized_active = sort_parcels_by_ts(
-            [normalize_parcel(s) for s in active], "planned_from"
+            [self._normalize(s) for s in active], "planned_from"
         )
+        self.known_codes = _known_codes(normalized_active + self.delivered)
 
         now = dt_util.now()
         self._current_tier_minutes = _hottest_tier_minutes(normalized_active, now)

@@ -82,6 +82,7 @@ async def test_diagnostics_redacts_parcel_barcode_and_address():
             {
                 "barcode": "3SABC123",
                 "receiver": "Jane Doe",
+                "contents": "Running shoes",
                 "sender": {"name": "Brand"},
                 "destination": {
                     "address": {
@@ -103,6 +104,7 @@ async def test_diagnostics_redacts_parcel_barcode_and_address():
     assert parcel["destination"]["address"]["city"] == REDACTED
     # Person/shop names are PII too — redacted since the 2.4.x polish.
     assert parcel["receiver"] == REDACTED
+    assert parcel["contents"] == REDACTED
     assert parcel["sender"]["name"] == REDACTED
 
 
