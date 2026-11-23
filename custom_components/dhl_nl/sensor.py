@@ -496,7 +496,7 @@ class DhlNextDeliverySensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return the barcode, sender, and receiver of the next delivery."""
+        """Return the barcode, sender, receiver and contents of the next delivery."""
         moments = self._delivery_moments()
         if not moments:
             return {}
@@ -505,6 +505,7 @@ class DhlNextDeliverySensor(CoordinatorEntity[DhlCoordinator], SensorEntity):
             "barcode": earliest.get("barcode"),
             "sender": earliest.get("sender"),
             "receiver": earliest.get("receiver"),
+            "contents": earliest.get("contents"),
         }
 
 

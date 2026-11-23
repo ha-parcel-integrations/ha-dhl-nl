@@ -213,6 +213,19 @@ def test_next_delivery_skips_a_window_that_has_ended():
     assert sensor.extra_state_attributes["barcode"] == "NEXT"
 
 
+def test_next_delivery_carries_the_contents():
+    parcel = _parcel(
+        "NEXT",
+        indication={
+            "indicationType": "MomentIndication",
+            "moment": "2099-05-20T10:00:00Z",
+        },
+    )
+    parcel["contents"] = "Running shoes"
+    sensor = DhlNextDeliverySensor(_make_coordinator([parcel]), USER_INFO)
+    assert sensor.extra_state_attributes["contents"] == "Running shoes"
+
+
 def test_next_delivery_keeps_a_window_that_is_still_running():
     parcel = _parcel(
         indication={
