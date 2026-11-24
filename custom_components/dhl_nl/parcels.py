@@ -149,6 +149,8 @@ _STATUS_MAP: dict[str, ParcelStatus] = {
     # unmapped-status warning from firing on every ordinary sort/arrival scan.
     "PARCEL_ARRIVED_AT_LOCAL_DEPOT": ParcelStatus.IN_TRANSIT,
     "PARCEL_SORTED_AT_HUB": ParcelStatus.IN_TRANSIT,
+    # ha-parcel-integrations/ha-dhl-nl#28
+    "PARCEL_SORTED_AT_GATEWAY": ParcelStatus.IN_TRANSIT,
     # Sender dropped the parcel off at a DHL ServicePoint — a routine
     # collection scan, not the recipient-facing AT_PICKUP_POINT states above.
     # ha-parcel-integrations/ha-dhl-nl#15
